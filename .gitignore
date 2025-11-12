@@ -11,4 +11,5 @@ node_modules/
 # OS
 Thumbs.db
 
-# (dist is intentionally NOT ignored since we want it versioned for GitHub Pages)
+# Dist folder included for deployment
+dist/
