@@ -1,8 +1,23 @@
 {
   "build": {
-    "command": "npm install && npm run build"
+    "builder": "NIXPACKS"
   },
-  "start": {
-    "command": "npm run start"
+  "nixpacks": {
+    "languages": {
+      "nodejs": {
+        "version": "18"
+      }
+    },
+    "phases": {
+      "install": {
+        "cmds": ["npm install"]
+      },
+      "build": {
+        "cmds": ["npm run build"]
+      },
+      "start": {
+        "cmds": ["npm run start"]
+      }
+    }
   }
 }
