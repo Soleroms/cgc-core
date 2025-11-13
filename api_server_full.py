@@ -161,57 +161,57 @@ class FullStackHandler(BaseHTTPRequestHandler):
             self._set_headers(500)
             self.wfile.write(json.dumps({'error': str(e)}).encode())
 
-   def _serve_static_file(self, path):
-    """Serve static files from dist folder"""
-    try:
-        # Default to index.html for root
-        if path == '/' or path == '':
-            filepath = 'dist/index.html'
-        else:
-            filepath = 'dist' + path
-        
-        # Check if file exists
-        if not os.path.exists(filepath):
-            # Try index.html for SPA routing
-            filepath = 'dist/index.html'
-        
-        # Determine content type
-        ext = filepath.split('.')[-1]
-        content_types = {
-            'html': 'text/html',
-            'css': 'text/css',
-            'js': 'application/javascript',
-            'json': 'application/json',
-            'png': 'image/png',
-            'jpg': 'image/jpeg',
-            'jpeg': 'image/jpeg',
-            'gif': 'image/gif',
-            'svg': 'image/svg+xml',
-            'ico': 'image/x-icon',
-            'woff': 'font/woff',
-            'woff2': 'font/woff2',
-            'ttf': 'font/ttf'
-        }
-        content_type = content_types.get(ext, 'text/plain')
-        
-        # Read file
-        mode = 'rb' if ext in ['png', 'jpg', 'jpeg', 'gif', 'ico', 'woff', 'woff2', 'ttf'] else 'r'
-        encoding = None if mode == 'rb' else 'utf-8'
-        
-        with open(filepath, mode, encoding=encoding) as f:
-            content = f.read()
-        
-        # Send response
-        self._set_headers(200, content_type)
-        if isinstance(content, str):
-            self.wfile.write(content.encode())
-        else:
-            self.wfile.write(content)
-            
-    except Exception as e:
-        print(f"Error serving {path}: {e}")
-        self._set_headers(404, 'text/html')
-        self.wfile.write(b'404 - Not Found')
+     def _serve_static_file(self, path):
+        """Serve static files from dist folder"""
+        try:
+            # Default to index.html for root
+            if path == '/' or path == '':
+                filepath = 'dist/index.html'
+            else:
+                filepath = 'dist' + path
+
+            # Check if file exists
+            if not os.path.exists(filepath):
+                # Try index.html for SPA routing
+                filepath = 'dist/index.html'
+
+            # Determine content type
+            ext = filepath.split('.')[-1]
+            content_types = {
+                'html': 'text/html',
+                'css': 'text/css',
+                'js': 'application/javascript',
+                'json': 'application/json',
+                'png': 'image/png',
+                'jpg': 'image/jpeg',
+                'jpeg': 'image/jpeg',
+                'gif': 'image/gif',
+                'svg': 'image/svg+xml',
+                'ico': 'image/x-icon',
+                'woff': 'font/woff',
+                'woff2': 'font/woff2',
+                'ttf': 'font/ttf'
+            }
+            content_type = content_types.get(ext, 'text/plain')
+
+            # Read file
+            mode = 'rb' if ext in ['png', 'jpg', 'jpeg', 'gif', 'ico', 'woff', 'woff2', 'ttf'] else 'r'
+            encoding = None if mode == 'rb' else 'utf-8'
+
+            with open(filepath, mode, encoding=encoding) as f:
+                content = f.read()
+
+            # Send response
+            self._set_headers(200, content_type)
+            if isinstance(content, str):
+                self.wfile.write(content.encode())
+            else:
+                self.wfile.write(content)
+
+        except Exception as e:
+            print(f"Error serving {path}: {e}")
+            self._set_headers(404, 'text/html')
+            self.wfile.write(b'404 - Not Found')
 
 
 if __name__ == "__main__":
