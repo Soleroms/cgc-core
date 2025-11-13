@@ -1,40 +1,34 @@
-# Multi-stage build: Node.js for frontend, Python for backend
+# Stage 1: Build frontend with Node.js
 FROM node:20-slim AS frontend
 
 WORKDIR /app
 
-# Copy package files
+# Install frontend dependencies
 COPY package*.json ./
-
-# Install dependencies
 RUN npm install --legacy-peer-deps
 
-# Copy source
+# Copy source code and build
 COPY . .
-
-# Build frontend
 RUN npm run build
 
-# Python stage
+# Stage 2: Backend with Python
 FROM python:3.11-slim
 
 WORKDIR /app
 
-# Copy Python requirements
+# Install backend dependencies
 COPY requirements.txt ./
-
-# Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt --break-system-packages || \
     pip install --no-cache-dir -r requirements.txt
 
-# Copy everything
-COPY . .
+# Copy backend files
+COPY api_server_full.py ./
 
-# Copy built frontend from previous stage
+# Copy compiled frontend
 COPY --from=frontend /app/dist ./dist
 
-# Expose port
+# Expose port for Railway
 EXPOSE 8000
 
-# Start Python server
+# Start backend server
 CMD ["python3", "api_server_full.py"]
