@@ -8,24 +8,57 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 import json
 import os
 import sys
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import urlparse
+import mimetypes # Necesario para servir archivos estáticos correctamente
 
 PORT = int(os.environ.get('PORT', 8000))
+STATIC_DIR = 'dist'
 
+# --- Módulos Placeholder para entrono local ---
+class PlaceholderCGC:
+    """Simulación del CGC Core."""
+    def create_cgc_core(self, config):
+        return self
+    def execute_decision(self, module, action, input_data, context):
+        return {
+            'status': 'success',
+            'decision': 'DEMO_APPROVED',
+            'confidence': 0.0,
+            'details': f"Processed action {action} in demo mode"
+        }
+    def get_metrics(self):
+        return {
+            'requests_handled': 0,
+            'avg_latency_ms': 0,
+            'core_version': 'DEMO-1.0.0'
+        }
+
+class PlaceholderContractAnalyzer:
+    """Simulación del Analizador de Contratos."""
+    def analyze(self, contract_text):
+        return {
+            'summary': f"Demo analysis complete. Length: {len(contract_text)} chars.",
+            'risk_level': 'UNKNOWN (Demo)',
+            'issues_found': 0
+        }
+
+# --- Inicialización de Módulos ---
 sys.path.insert(0, os.path.abspath('cgc_core'))
 sys.path.insert(0, os.path.abspath('discipleai_legal'))
 
 try:
+    # Intenta usar los módulos reales
     from cgc_core_integration import create_cgc_core
     from contract_analyzer import ContractAnalyzer
     CGC_AVAILABLE = True
     cgc = create_cgc_core({'confidence_threshold': 0.85})
     contract_analyzer = ContractAnalyzer()
 except ImportError as e:
-    print(f"Warning: CGC modules not available: {e}")
+    # Usa los placeholders si los módulos no están disponibles
+    print(f"Warning: CGC modules not available: {e}. Running with placeholders.")
     CGC_AVAILABLE = False
-    cgc = None
-    contract_analyzer = None
+    cgc = PlaceholderCGC().create_cgc_core({})
+    contract_analyzer = PlaceholderContractAnalyzer()
 
 
 class FullStackHandler(BaseHTTPRequestHandler):
@@ -34,7 +67,7 @@ class FullStackHandler(BaseHTTPRequestHandler):
         self.send_header('Content-type', content_type)
         self.send_header('Access-Control-Allow-Origin', '*')
         self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
         self.end_headers()
 
     def do_OPTIONS(self):
@@ -73,7 +106,9 @@ class FullStackHandler(BaseHTTPRequestHandler):
             self._set_headers()
             if cgc and CGC_AVAILABLE:
                 try:
-                    metrics = cgc.cgc.get_metrics()
+                    # Nota: La llamada original 'cgc.cgc.get_metrics()' parecía incorrecta.
+                    # Se asume que el objeto 'cgc' ya es la instancia del core.
+                    metrics = cgc.get_metrics()
                     self.wfile.write(json.dumps(metrics, indent=2).encode())
                 except Exception as e:
                     self._set_headers(500)
@@ -109,17 +144,31 @@ class FullStackHandler(BaseHTTPRequestHandler):
             self._set_headers(404)
             self.wfile.write(json.dumps({'error': 'Not found'}).encode())
 
-    def _handle_decision(self):
+    def _get_post_data(self):
+        """Helper para obtener y decodificar el cuerpo de la petición POST."""
         try:
             content_length = int(self.headers['Content-Length'])
             body = self.rfile.read(content_length)
-            data = json.loads(body.decode('utf-8'))
+            return json.loads(body.decode('utf-8'))
+        except (KeyError, ValueError, AttributeError):
+            self._set_headers(400)
+            self.wfile.write(json.dumps({'error': 'Invalid Content-Length or JSON'}).encode())
+            # Es importante elevar una excepción para que las funciones _handle_... no continúen
+            raise ValueError("Invalid POST data")
 
+    def _handle_decision(self):
+        try:
+            data = self._get_post_data()
+        except ValueError:
+            return
+
+        try:
             if not CGC_AVAILABLE or not cgc:
                 self._set_headers(200)
                 self.wfile.write(json.dumps({
                     'status': 'demo_mode',
-                    'message': 'CGC Core not available - this is a demo response'
+                    'message': 'CGC Core not available - this is a demo response',
+                    'input_received': data
                 }).encode())
                 return
 
@@ -135,23 +184,26 @@ class FullStackHandler(BaseHTTPRequestHandler):
 
         except Exception as e:
             self._set_headers(500)
-            self.wfile.write(json.dumps({'error': str(e)}).encode())
+            self.wfile.write(json.dumps({'error': f"Decision execution failed: {str(e)}"}).encode())
 
     def _handle_contract_analysis(self):
         try:
-            content_length = int(self.headers['Content-Length'])
-            body = self.rfile.read(content_length)
-            data = json.loads(body.decode('utf-8'))
+            data = self._get_post_data()
+        except ValueError:
+            return
+
+        try:
+            contract_text = data.get('contract_text', '')
 
             if not contract_analyzer:
                 self._set_headers(200)
                 self.wfile.write(json.dumps({
                     'status': 'demo_mode',
-                    'message': 'Contract Analyzer not available - this is a demo response'
+                    'message': 'Contract Analyzer not available or no text provided',
+                    'text_length': len(contract_text)
                 }).encode())
                 return
 
-            contract_text = data.get('contract_text', '')
             result = contract_analyzer.analyze(contract_text)
 
             self._set_headers(200)
@@ -159,59 +211,50 @@ class FullStackHandler(BaseHTTPRequestHandler):
 
         except Exception as e:
             self._set_headers(500)
-            self.wfile.write(json.dumps({'error': str(e)}).encode())
+            self.wfile.write(json.dumps({'error': f"Analysis execution failed: {str(e)}"}).encode())
 
-     def _serve_static_file(self, path):
-        """Serve static files from dist folder"""
+    def _serve_static_file(self, path):
+        """Sirve archivos estáticos desde la carpeta 'dist'."""
+        if path == '/':
+            path = '/index.html'
+
+        file_path = os.path.join(STATIC_DIR, path[1:])
+
         try:
-            # Default to index.html for root
-            if path == '/' or path == '':
-                filepath = 'dist/index.html'
-            else:
-                filepath = 'dist' + path
-
-            # Check if file exists
-            if not os.path.exists(filepath):
-                # Try index.html for SPA routing
-                filepath = 'dist/index.html'
-
-            # Determine content type
-            ext = filepath.split('.')[-1]
-            content_types = {
-                'html': 'text/html',
-                'css': 'text/css',
-                'js': 'application/javascript',
-                'json': 'application/json',
-                'png': 'image/png',
-                'jpg': 'image/jpeg',
-                'jpeg': 'image/jpeg',
-                'gif': 'image/gif',
-                'svg': 'image/svg+xml',
-                'ico': 'image/x-icon',
-                'woff': 'font/woff',
-                'woff2': 'font/woff2',
-                'ttf': 'font/ttf'
-            }
-            content_type = content_types.get(ext, 'text/plain')
-
-            # Read file
-            mode = 'rb' if ext in ['png', 'jpg', 'jpeg', 'gif', 'ico', 'woff', 'woff2', 'ttf'] else 'r'
-            encoding = None if mode == 'rb' else 'utf-8'
-
-            with open(filepath, mode, encoding=encoding) as f:
+            with open(file_path, 'rb') as f:
                 content = f.read()
 
-            # Send response
-            self._set_headers(200, content_type)
-            if isinstance(content, str):
-                self.wfile.write(content.encode())
-            else:
-                self.wfile.write(content)
+            content_type, _ = mimetypes.guess_type(file_path)
+            if content_type is None:
+                content_type = 'application/octet-stream'
 
+            self.send_response(200)
+            self.send_header('Content-type', content_type)
+            self.send_header('Content-Length', len(content))
+            self.end_headers()
+            self.wfile.write(content)
+
+        except FileNotFoundError:
+            # Fallback para SPAs (React) a index.html
+            try:
+                with open(os.path.join(STATIC_DIR, 'index.html'), 'rb') as f:
+                    content = f.read()
+
+                self.send_response(200)
+                self.send_header('Content-type', 'text/html')
+                self.send_header('Content-Length', len(content))
+                self.end_headers()
+                self.wfile.write(content)
+            except FileNotFoundError:
+                self.send_response(404)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({'error': 'File not found'}).encode())
         except Exception as e:
-            print(f"Error serving {path}: {e}")
-            self._set_headers(404, 'text/html')
-            self.wfile.write(b'404 - Not Found')
+            self.send_response(500)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({'error': f"Server error while serving static file: {str(e)}"}).encode())
 
 
 if __name__ == "__main__":
