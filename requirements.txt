@@ -1,0 +1,2 @@
+# CGC Core Requirements
+# (vacío por ahora, agrega dependencias si las necesitas)
