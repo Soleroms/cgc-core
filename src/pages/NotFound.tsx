@@ -1,21 +1,47 @@
-import { useLocation } from "react-router-dom";
-import { useEffect } from "react";
+/**
+ * 404 Not Found Page
+ * OlympusMont Systems LLC
+ */
+
+import { Link } from 'react-router-dom';
+import { Home, ArrowLeft } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 const NotFound = () => {
-  const location = useLocation();
-
-  useEffect(() => {
-    console.error("404 Error: User attempted to access non-existent route:", location.pathname);
-  }, [location.pathname]);
-
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted">
-      <div className="text-center">
-        <h1 className="mb-4 text-4xl font-bold">404</h1>
-        <p className="mb-4 text-xl text-muted-foreground">Oops! Page not found</p>
-        <a href="/" className="text-primary underline hover:text-primary/90">
-          Return to Home
-        </a>
+    <div className="min-h-screen bg-gradient-surface flex items-center justify-center p-6">
+      <div className="max-w-md text-center space-y-6">
+        <div className="text-9xl font-bold text-gradient-cognitive">
+          404
+        </div>
+        
+        <h1 className="text-3xl font-bold text-foreground">
+          Page Not Found
+        </h1>
+        
+        <p className="text-muted-foreground">
+          The page you're looking for doesn't exist or has been moved.
+        </p>
+        
+        <div className="flex gap-4 justify-center">
+          <Button asChild>
+            <Link to="/">
+              <Home className="w-4 h-4 mr-2" />
+              Go Home
+            </Link>
+          </Button>
+          
+          <Button variant="outline" onClick={() => window.history.back()}>
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Go Back
+          </Button>
+        </div>
+        
+        <div className="pt-8 text-sm text-muted-foreground">
+          <a href="https://olympusmont.com" className="text-primary hover:underline">
+            olympusmont.com
+          </a>
+        </div>
       </div>
     </div>
   );
