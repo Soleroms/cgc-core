@@ -1,5 +1,5 @@
 [phases.setup]
-nixPkgs = ['nodejs', 'python39']
+nixPkgs = ['nodejs_20', 'python311']
 
 [phases.install]
 cmds = ['npm install --legacy-peer-deps']
@@ -8,4 +8,4 @@ cmds = ['npm install --legacy-peer-deps']
 cmds = ['npm run build']
 
 [start]
-cmd = 'python api_server_full.py'
+cmd = 'python3 api_server_full.py'
