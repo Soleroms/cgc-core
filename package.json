@@ -6,12 +6,12 @@
   "license": "Proprietary",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "start": "vite preview",
-    "lint": "eslint . --ext ts,tsx",
-    "deploy": "npm run build && gh-pages -d dist"
-  },
+  "dev": "vite",
+  "build": "npx vite build",
+  "start": "vite preview",
+  "lint": "eslint . --ext ts,tsx",
+  "deploy": "npm run build && gh-pages -d dist"
+},
   "dependencies": {
     "@radix-ui/react-accordion": "^1.1.2",
     "@radix-ui/react-alert-dialog": "^1.0.5",
