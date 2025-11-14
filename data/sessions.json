@@ -1,0 +1,9 @@
+{
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFkbWluQG9seW1wdXNtb250LmNvbSIsInJvbGUiOiJhZG1pbiIsImV4cCI6MTc2MzcyMTExMX0.VJgIYV2Okqwn9XQYFfGLTyT9e20GkDjz2pOsz00l7Bg": {
+    "email": "admin@olympusmont.com",
+    "role": "admin",
+    "created_at": "2025-11-14T05:31:51.338758",
+    "expires_at": "2025-11-21T05:31:51.338766",
+    "ip": "127.0.0.1"
+  }
+}

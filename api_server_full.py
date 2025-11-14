@@ -14,7 +14,13 @@ import mimetypes # Necesario para servir archivos estáticos correctamente
 PORT = int(os.environ.get('PORT', 8000))
 STATIC_DIR = 'dist'
 
+
+# Add after existing imports
+import sys
+sys.path.insert(0, '.')
+from auth_system import auth
 # --- Módulos Placeholder para entrono local ---
+
 class PlaceholderCGC:
     """Simulación del CGC Core."""
     def create_cgc_core(self, config):
@@ -58,6 +64,15 @@ except ImportError as e:
     print(f"Warning: CGC modules not available: {e}. Running with placeholders.")
     CGC_AVAILABLE = False
     cgc = PlaceholderCGC().create_cgc_core({})
+    # Try to import AI analyzer
+try:
+    import sys
+    sys.path.insert(0, 'discipleai_legal')
+    from contract_analyzer_ai import AIContractAnalyzer
+    contract_analyzer = AIContractAnalyzer()
+    print("✅ AI Contract Analyzer loaded")
+except Exception as e:
+    print(f"⚠️  Using placeholder analyzer: {e}")
     contract_analyzer = PlaceholderContractAnalyzer()
 
 
@@ -87,6 +102,57 @@ class FullStackHandler(BaseHTTPRequestHandler):
         else:
             self._serve_static_file(path)
 
+def _handle_auth_login(self):
+        """Handle login"""
+        try:
+            data = self._get_post_data()
+        except ValueError:
+            return
+        
+        email = data.get('email')
+        password = data.get('password')
+        ip = self.client_address[0]
+        
+        result = auth.login(email, password, ip)
+        
+        self._set_headers(200 if result['success'] else 401)
+        self.wfile.write(json.dumps(result).encode())
+    
+    def _handle_auth_signup(self):
+        """Handle signup"""
+        try:
+            data = self._get_post_data()
+        except ValueError:
+            return
+        
+        email = data.get('email')
+        password = data.get('password')
+        
+        result = auth.create_user(email, password, role='user', created_by='self-signup')
+        
+        self._set_headers(200 if result['success'] else 400)
+        self.wfile.write(json.dumps(result).encode())
+    
+    def _handle_auth_users(self):
+        """List users (admin only)"""
+        token = self.headers.get('Authorization', '').replace('Bearer ', '')
+        user = auth.verify_token(token)
+        
+        if not user:
+            self._set_headers(401)
+            self.wfile.write(json.dumps({'error': 'Unauthorized'}).encode())
+            return
+        
+        result = auth.list_users(user['role'])
+        
+        self._set_headers(200 if result['success'] else 403)
+        self.wfile.write(json.dumps(result).encode())
+    
+    def _handle_auth_stats(self):
+        """Get auth stats"""
+        stats = auth.get_stats()
+        self._set_headers(200)
+        self.wfile.write(json.dumps(stats).encode())
     def _handle_api_get(self, path):
         if path == '/api/health':
             self._set_headers()
@@ -132,17 +198,24 @@ class FullStackHandler(BaseHTTPRequestHandler):
             self._set_headers(404)
             self.wfile.write(json.dumps({'error': 'Not found'}).encode())
 
-    def do_POST(self):
-        parsed_path = urlparse(self.path)
-        path = parsed_path.path
-
-        if path == '/api/decision':
-            self._handle_decision()
-        elif path == '/api/analyze-contract':
-            self._handle_contract_analysis()
-        else:
-            self._set_headers(404)
-            self.wfile.write(json.dumps({'error': 'Not found'}).encode())
+   def do_POST(self):
+        """Handle POST requests"""
+        
+        # Auth endpoints
+        if self.path == '/api/auth/login':
+            return self._handle_auth_login()
+        
+        if self.path == '/api/auth/signup':
+            return self._handle_auth_signup()
+        
+        if self.path == '/api/auth/users':
+            return self._handle_auth_users()
+        
+        # Existing endpoints...
+        if self.path == '/api/analyze-contract':
+            return self._handle_contract_analysis()
+        
+        # ... rest of existing code
 
     def _get_post_data(self):
         """Helper para obtener y decodificar el cuerpo de la petición POST."""
