@@ -4,10 +4,8 @@ import { SignupForm } from '@/components/auth/SignupForm';
 import { ContractUploader } from '@/components/upload/ContractUploader';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-// CORRECCIÓN: Se añade Loader2 a las importaciones de lucide-react
-import { LogOut, FileText, Users, BarChart3, Shield, Home, Loader2 } from 'lucide-react'; 
+import { LogOut, FileText, Users, BarChart3, Shield, Home, Loader2, Activity } from 'lucide-react';
 
-// AÑADIDO: 'export default' para que main.tsx pueda importarlo correctamente
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showSignup, setShowSignup] = useState(false);
@@ -15,7 +13,6 @@ export default function App() {
   const [currentView, setCurrentView] = useState('dashboard');
   const [analysisResult, setAnalysisResult] = useState<any>(null);
 
-  // Check if already logged in
   useEffect(() => {
     const token = localStorage.getItem('auth_token');
     const storedUser = localStorage.getItem('user');
@@ -28,7 +25,6 @@ export default function App() {
 
   const handleLoginSuccess = (token: string, userData: any) => {
     setIsAuthenticated(true);
-    // Nota: Es mejor almacenar el token y el usuario en localStorage aquí.
     localStorage.setItem('auth_token', token);
     localStorage.setItem('user', JSON.stringify(userData));
     setUser(userData);
@@ -48,7 +44,6 @@ export default function App() {
     setCurrentView('results');
   };
 
-  // Auth screens
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-6">
@@ -69,10 +64,8 @@ export default function App() {
     );
   }
 
-  // Main app
   return (
     <div className="min-h-screen bg-gradient-surface">
-      {/* Header */}
       <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
@@ -86,7 +79,6 @@ export default function App() {
                 </p>
               </div>
               
-              {/* Navigation */}
               <nav className="flex gap-2">
                 <Button
                   variant={currentView === 'dashboard' ? 'default' : 'ghost'}
@@ -117,7 +109,6 @@ export default function App() {
               </nav>
             </div>
 
-            {/* User menu */}
             <div className="flex items-center gap-4">
               <div className="text-right">
                 <p className="text-sm font-medium">{user?.email}</p>
@@ -138,48 +129,38 @@ export default function App() {
         </div>
       </header>
 
-      {/* Main content */}
       <main className="container mx-auto px-6 py-8">
-        {currentView === 'dashboard' && (
-          <DashboardView />
-        )}
-
+        {currentView === 'dashboard' && <DashboardView />}
         {currentView === 'analyze' && (
           <div className="max-w-4xl mx-auto">
             <ContractUploader onAnalysisComplete={handleAnalysisComplete} />
           </div>
         )}
-
         {currentView === 'results' && analysisResult && (
           <ResultsView result={analysisResult} onBack={() => setCurrentView('analyze')} />
         )}
-
-        {currentView === 'admin' && user?.role === 'admin' && (
-          <AdminView />
-        )}
+        {currentView === 'admin' && user?.role === 'admin' && <AdminView />}
       </main>
     </div>
   );
 }
 
-// Dashboard View
-// Se asume que ResultsView y AdminView existen en otros archivos o están definidos aquí
 const ResultsView = ({ result, onBack }: { result: any, onBack: () => void }) => (
-    <Card className="p-6">
-        <h2 className="text-3xl font-bold mb-4">Analysis Results</h2>
-        <pre className="p-4 bg-muted rounded-lg text-sm overflow-auto">
-            {JSON.stringify(result, null, 2)}
-        </pre>
-        <Button onClick={onBack} className="mt-4">Back to Analysis</Button>
-    </Card>
-);
-const AdminView = () => (
-    <Card className="p-6">
-        <h2 className="text-3xl font-bold mb-4">Admin Dashboard</h2>
-        <p className="text-muted-foreground">User management and system configuration controls go here.</p>
-    </Card>
+  <Card className="p-6">
+    <h2 className="text-3xl font-bold mb-4">Analysis Results</h2>
+    <pre className="p-4 bg-muted rounded-lg text-sm overflow-auto max-h-96">
+      {JSON.stringify(result, null, 2)}
+    </pre>
+    <Button onClick={onBack} className="mt-4">Back to Analysis</Button>
+  </Card>
 );
 
+const AdminView = () => (
+  <Card className="p-6">
+    <h2 className="text-3xl font-bold mb-4">Admin Dashboard</h2>
+    <p className="text-muted-foreground">User management and system configuration controls.</p>
+  </Card>
+);
 
 const DashboardView = () => {
   const [stats, setStats] = useState<any>(null);
@@ -188,20 +169,41 @@ const DashboardView = () => {
   useEffect(() => {
     const fetchMetrics = async () => {
       try {
-        const response = await fetch('/api/metrics');
+        console.log('🔍 Fetching metrics from API...');
+        const response = await fetch('http://localhost:8080/api/metrics', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          cache: 'no-cache'
+        });
+        
+        console.log('📡 Response status:', response.status);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
         const data = await response.json();
+        console.log('✅ Metrics received:', data);
         setStats(data);
       } catch (err) {
-        console.error('Failed to fetch metrics:', err);
+        console.error('❌ Failed to fetch metrics:', err);
+        setStats({
+          total_decisions: 0,
+          total_contracts: 0,
+          avg_compliance_score: 0,
+          system_health: 0,
+          cgc_core_active: false,
+          demo_mode: true
+        });
       } finally {
         setLoading(false);
       }
     };
 
     fetchMetrics();
-    
-    // Refresh every 5 seconds for real-time feel
-    const interval = setInterval(fetchMetrics, 5000);
+    const interval = setInterval(fetchMetrics, 3000);
     
     return () => clearInterval(interval);
   }, []);
@@ -209,7 +211,6 @@ const DashboardView = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        {/* CORRECCIÓN: Loader2 ahora está importado */}
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
@@ -231,10 +232,15 @@ const DashboardView = () => {
               <span className="text-sm font-medium text-green-500">CGC CORE LIVE</span>
             </div>
           )}
+          {stats?.demo_mode && (
+            <div className="flex items-center gap-2 px-4 py-2 bg-yellow-500/10 rounded-lg border border-yellow-500/20">
+              <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse" />
+              <span className="text-sm font-medium text-yellow-500">DEMO MODE</span>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="p-6">
           <div className="flex items-center gap-4">
@@ -245,9 +251,7 @@ const DashboardView = () => {
               <p className="text-2xl font-bold">
                 {stats?.total_decisions?.toLocaleString() || '0'}
               </p>
-              <p className="text-sm text-muted-foreground">
-                Total Decisions
-              </p>
+              <p className="text-sm text-muted-foreground">Total Decisions</p>
             </div>
           </div>
         </Card>
@@ -261,9 +265,7 @@ const DashboardView = () => {
               <p className="text-2xl font-bold">
                 {stats?.total_contracts?.toLocaleString() || '0'}
               </p>
-              <p className="text-sm text-muted-foreground">
-                Contracts Analyzed
-              </p>
+              <p className="text-sm text-muted-foreground">Contracts Analyzed</p>
             </div>
           </div>
         </Card>
@@ -275,49 +277,38 @@ const DashboardView = () => {
             </div>
             <div>
               <p className="text-2xl font-bold">
-                {stats?.avg_compliance_score || 0}%
+                {stats?.avg_compliance_score?.toFixed(1) || '0.0'}%
               </p>
-              <p className="text-sm text-muted-foreground">
-                Avg Compliance Score
-              </p>
+              <p className="text-sm text-muted-foreground">Avg Compliance Score</p>
             </div>
           </div>
         </Card>
       </div>
 
-      {/* CGC CORE Modules Status */}
       {stats?.cgc_core_active && stats?.modules && (
         <Card className="p-6">
-          <h3 className="text-xl font-bold mb-4">CGC CORE™ Modules</h3>
+          <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+            <Activity className="w-5 h-5" />
+            CGC CORE™ Modules
+          </h3>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            {/* Se utiliza Object.entries con declaración de tipo para manejar 'module' correctamente */}
-            {Object.entries(stats.modules).map(([key, moduleData]: [string, any]) => (
-              <div key={key} className="p-4 bg-muted rounded-lg">
+            {Object.entries(stats.modules).map(([key, module]: [string, any]) => (
+              <div key={key} className="p-4 bg-muted rounded-lg border border-border hover:border-primary/50 transition-colors">
                 <div className="flex items-center justify-between mb-2">
                   <span className="font-semibold text-sm">{key}</span>
                   <span className={`text-xs px-2 py-1 rounded ${
-                    moduleData.status === 'active' 
+                    module.status === 'active' 
                       ? 'bg-green-500/20 text-green-500' 
                       : 'bg-red-500/20 text-red-500'
                   }`}>
-                    {moduleData.status}
+                    {module.status}
                   </span>
                 </div>
                 <div className="space-y-1 text-xs text-muted-foreground">
                   <div className="flex justify-between">
                     <span>Health:</span>
-                    <span className="font-medium">{moduleData.health}%</span>
+                    <span className="font-medium text-foreground">{module.health}%</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span>Uptime:</span>
-                    <span className="font-medium">{moduleData.uptime}%</span>
-                  </div>
-                  {moduleData.total_processed !== undefined && (
-                    <div className="flex justify-between">
-                      <span>Processed:</span>
-                      <span className="font-medium">{moduleData.total_processed?.toLocaleString()}</span>
-                    </div>
-                  )}
                 </div>
               </div>
             ))}
@@ -325,26 +316,11 @@ const DashboardView = () => {
         </Card>
       )}
 
-      {/* Blockchain Audit Trail */}
-      {stats?.cgc_core_active && (
-        <Card className="p-6">
-          <h3 className="text-xl font-bold mb-4">Blockchain Audit Trail</h3>
-          <div className="flex items-center justify-between p-4 bg-primary/5 rounded-lg">
-            <div>
-              <p className="text-sm text-muted-foreground mb-1">Total Audit Entries</p>
-              <p className="text-2xl font-bold">{stats.audit_entries?.toLocaleString()}</p>
-            </div>
-            <div className="text-right">
-              <p className="text-sm text-muted-foreground mb-1">Chain Integrity</p>
-              <p className="text-lg font-bold text-green-500">VERIFIED ✓</p>
-            </div>
-          </div>
-        </Card>
-      )}
-
-      {/* System Status */}
       <Card className="p-6">
-        <h3 className="text-xl font-bold mb-4">System Status</h3>
+        <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+          <Activity className="w-5 h-5" />
+          System Status
+        </h3>
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-sm">CGC Core Engine</span>
@@ -355,16 +331,16 @@ const DashboardView = () => {
             </span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-sm">AI Analysis Engine</span>
-            <span className="text-sm text-green-500 font-medium">● Active</span>
+            <span className="text-sm">System Health</span>
+            <span className="text-sm text-green-500 font-medium">
+              {stats?.system_health || 0}%
+            </span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-sm">Compliance Checker</span>
-            <span className="text-sm text-green-500 font-medium">● Active</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm">Audit Trail (Blockchain)</span>
-            <span className="text-sm text-green-500 font-medium">● Active</span>
+            <span className="text-sm">Audit Entries</span>
+            <span className="text-sm font-medium">
+              {stats?.audit_entries?.toLocaleString() || '0'}
+            </span>
           </div>
         </div>
       </Card>
