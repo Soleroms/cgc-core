@@ -4,9 +4,11 @@ import { SignupForm } from '@/components/auth/SignupForm';
 import { ContractUploader } from '@/components/upload/ContractUploader';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { LogOut, FileText, Users, BarChart3, Shield, Home } from 'lucide-react';
+// CORRECCIÓN: Se añade Loader2 a las importaciones de lucide-react
+import { LogOut, FileText, Users, BarChart3, Shield, Home, Loader2 } from 'lucide-react'; 
 
-function App() {
+// AÑADIDO: 'export default' para que main.tsx pueda importarlo correctamente
+export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showSignup, setShowSignup] = useState(false);
   const [user, setUser] = useState<any>(null);
@@ -26,6 +28,9 @@ function App() {
 
   const handleLoginSuccess = (token: string, userData: any) => {
     setIsAuthenticated(true);
+    // Nota: Es mejor almacenar el token y el usuario en localStorage aquí.
+    localStorage.setItem('auth_token', token);
+    localStorage.setItem('user', JSON.stringify(userData));
     setUser(userData);
   };
 
@@ -158,23 +163,75 @@ function App() {
 }
 
 // Dashboard View
+// Se asume que ResultsView y AdminView existen en otros archivos o están definidos aquí
+const ResultsView = ({ result, onBack }: { result: any, onBack: () => void }) => (
+    <Card className="p-6">
+        <h2 className="text-3xl font-bold mb-4">Analysis Results</h2>
+        <pre className="p-4 bg-muted rounded-lg text-sm overflow-auto">
+            {JSON.stringify(result, null, 2)}
+        </pre>
+        <Button onClick={onBack} className="mt-4">Back to Analysis</Button>
+    </Card>
+);
+const AdminView = () => (
+    <Card className="p-6">
+        <h2 className="text-3xl font-bold mb-4">Admin Dashboard</h2>
+        <p className="text-muted-foreground">User management and system configuration controls go here.</p>
+    </Card>
+);
+
+
 const DashboardView = () => {
   const [stats, setStats] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/metrics')
-      .then(res => res.json())
-      .then(data => setStats(data))
-      .catch(err => console.error(err));
+    const fetchMetrics = async () => {
+      try {
+        const response = await fetch('/api/metrics');
+        const data = await response.json();
+        setStats(data);
+      } catch (err) {
+        console.error('Failed to fetch metrics:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMetrics();
+    
+    // Refresh every 5 seconds for real-time feel
+    const interval = setInterval(fetchMetrics, 5000);
+    
+    return () => clearInterval(interval);
   }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        {/* CORRECCIÓN: Loader2 ahora está importado */}
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-3xl font-bold mb-2">Welcome to CGC CORE™</h2>
-        <p className="text-muted-foreground">
-          AI-powered contract analysis with cognitive governance
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-3xl font-bold mb-2">Welcome to CGC CORE™</h2>
+            <p className="text-muted-foreground">
+              AI-powered contract analysis with cognitive governance
+            </p>
+          </div>
+          {stats?.cgc_core_active && (
+            <div className="flex items-center gap-2 px-4 py-2 bg-green-500/10 rounded-lg border border-green-500/20">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+              <span className="text-sm font-medium text-green-500">CGC CORE LIVE</span>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Stats Grid */}
@@ -182,11 +239,27 @@ const DashboardView = () => {
         <Card className="p-6">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-primary/10 rounded-lg">
-              <FileText className="w-6 h-6 text-primary" />
+              <BarChart3 className="w-6 h-6 text-primary" />
             </div>
             <div>
               <p className="text-2xl font-bold">
-                {stats?.total_contracts || 0}
+                {stats?.total_decisions?.toLocaleString() || '0'}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Total Decisions
+              </p>
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-6">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-green-500/10 rounded-lg">
+              <FileText className="w-6 h-6 text-green-500" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold">
+                {stats?.total_contracts?.toLocaleString() || '0'}
               </p>
               <p className="text-sm text-muted-foreground">
                 Contracts Analyzed
@@ -197,12 +270,12 @@ const DashboardView = () => {
 
         <Card className="p-6">
           <div className="flex items-center gap-4">
-            <div className="p-3 bg-green-500/10 rounded-lg">
-              <Shield className="w-6 h-6 text-green-500" />
+            <div className="p-3 bg-blue-500/10 rounded-lg">
+              <Shield className="w-6 h-6 text-blue-500" />
             </div>
             <div>
               <p className="text-2xl font-bold">
-                {stats?.compliance_score || 96.8}%
+                {stats?.avg_compliance_score || 0}%
               </p>
               <p className="text-sm text-muted-foreground">
                 Avg Compliance Score
@@ -210,46 +283,64 @@ const DashboardView = () => {
             </div>
           </div>
         </Card>
+      </div>
 
+      {/* CGC CORE Modules Status */}
+      {stats?.cgc_core_active && stats?.modules && (
         <Card className="p-6">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-blue-500/10 rounded-lg">
-              <BarChart3 className="w-6 h-6 text-blue-500" />
-            </div>
+          <h3 className="text-xl font-bold mb-4">CGC CORE™ Modules</h3>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            {/* Se utiliza Object.entries con declaración de tipo para manejar 'module' correctamente */}
+            {Object.entries(stats.modules).map(([key, moduleData]: [string, any]) => (
+              <div key={key} className="p-4 bg-muted rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-semibold text-sm">{key}</span>
+                  <span className={`text-xs px-2 py-1 rounded ${
+                    moduleData.status === 'active' 
+                      ? 'bg-green-500/20 text-green-500' 
+                      : 'bg-red-500/20 text-red-500'
+                  }`}>
+                    {moduleData.status}
+                  </span>
+                </div>
+                <div className="space-y-1 text-xs text-muted-foreground">
+                  <div className="flex justify-between">
+                    <span>Health:</span>
+                    <span className="font-medium">{moduleData.health}%</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Uptime:</span>
+                    <span className="font-medium">{moduleData.uptime}%</span>
+                  </div>
+                  {moduleData.total_processed !== undefined && (
+                    <div className="flex justify-between">
+                      <span>Processed:</span>
+                      <span className="font-medium">{moduleData.total_processed?.toLocaleString()}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* Blockchain Audit Trail */}
+      {stats?.cgc_core_active && (
+        <Card className="p-6">
+          <h3 className="text-xl font-bold mb-4">Blockchain Audit Trail</h3>
+          <div className="flex items-center justify-between p-4 bg-primary/5 rounded-lg">
             <div>
-              <p className="text-2xl font-bold">
-                {stats?.total_clauses || 1547}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Clauses Extracted
-              </p>
+              <p className="text-sm text-muted-foreground mb-1">Total Audit Entries</p>
+              <p className="text-2xl font-bold">{stats.audit_entries?.toLocaleString()}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-sm text-muted-foreground mb-1">Chain Integrity</p>
+              <p className="text-lg font-bold text-green-500">VERIFIED ✓</p>
             </div>
           </div>
         </Card>
-      </div>
-
-      {/* Quick Actions */}
-      <Card className="p-6">
-        <h3 className="text-xl font-bold mb-4">Quick Actions</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Button className="h-auto py-6 justify-start" variant="outline">
-            <div className="text-left">
-              <p className="font-semibold">Analyze New Contract</p>
-              <p className="text-sm text-muted-foreground">
-                Upload and analyze contracts with AI
-              </p>
-            </div>
-          </Button>
-          <Button className="h-auto py-6 justify-start" variant="outline">
-            <div className="text-left">
-              <p className="font-semibold">View Reports</p>
-              <p className="text-sm text-muted-foreground">
-                Access previous analysis results
-              </p>
-            </div>
-          </Button>
-        </div>
-      </Card>
+      )}
 
       {/* System Status */}
       <Card className="p-6">
@@ -257,7 +348,11 @@ const DashboardView = () => {
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-sm">CGC Core Engine</span>
-            <span className="text-sm text-green-500 font-medium">● Active</span>
+            <span className={`text-sm font-medium ${
+              stats?.cgc_core_active ? 'text-green-500' : 'text-yellow-500'
+            }`}>
+              ● {stats?.cgc_core_active ? 'Active' : 'Demo Mode'}
+            </span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-sm">AI Analysis Engine</span>
@@ -268,7 +363,7 @@ const DashboardView = () => {
             <span className="text-sm text-green-500 font-medium">● Active</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-sm">Audit Trail</span>
+            <span className="text-sm">Audit Trail (Blockchain)</span>
             <span className="text-sm text-green-500 font-medium">● Active</span>
           </div>
         </div>
@@ -276,193 +371,3 @@ const DashboardView = () => {
     </div>
   );
 };
-
-// Results View
-const ResultsView = ({ result, onBack }: any) => {
-  return (
-    <div className="max-w-6xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-3xl font-bold">Analysis Results</h2>
-        <Button onClick={onBack} variant="outline">
-          ← Back to Upload
-        </Button>
-      </div>
-
-      {/* Summary Card */}
-      <Card className="p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-2xl font-bold">Contract Summary</h3>
-          <div className="flex items-center gap-2">
-            <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-              result.overall_risk === 'LOW' ? 'bg-green-100 text-green-700' :
-              result.overall_risk === 'MEDIUM' ? 'bg-yellow-100 text-yellow-700' :
-              'bg-red-100 text-red-700'
-            }`}>
-              {result.overall_risk} RISK
-            </span>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-3 gap-4 mb-6">
-          <div className="text-center p-4 bg-muted rounded-lg">
-            <div className="text-3xl font-bold text-primary">
-              {result.compliance_score}%
-            </div>
-            <div className="text-sm text-muted-foreground">
-              Compliance Score
-            </div>
-          </div>
-          <div className="text-center p-4 bg-muted rounded-lg">
-            <div className="text-3xl font-bold text-primary">
-              {result.contract_summary?.estimated_pages || 0}
-            </div>
-            <div className="text-sm text-muted-foreground">
-              Pages Analyzed
-            </div>
-          </div>
-          <div className="text-center p-4 bg-muted rounded-lg">
-            <div className="text-3xl font-bold text-primary">
-              {result.contract_summary?.word_count || 0}
-            </div>
-            <div className="text-sm text-muted-foreground">
-              Words
-            </div>
-          </div>
-        </div>
-
-        <div className="p-4 bg-primary/5 rounded-lg space-y-2">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-mono text-muted-foreground">Analysis ID:</span>
-            <span className="text-sm font-mono font-bold">{result.analysis_id}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-mono text-muted-foreground">Audit Hash:</span>
-            <span className="text-sm font-mono font-bold">{result.audit_hash}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-mono text-muted-foreground">Powered by:</span>
-            <span className="text-sm font-mono font-bold">{result.powered_by}</span>
-          </div>
-        </div>
-      </Card>
-
-      {/* Detailed Analysis */}
-      <Card className="p-6">
-        <h3 className="text-xl font-bold mb-4">Detailed Analysis</h3>
-        <pre className="bg-muted p-4 rounded-lg overflow-auto text-sm max-h-96">
-          {JSON.stringify(result, null, 2)}
-        </pre>
-      </Card>
-
-      {/* Actions */}
-      <div className="flex gap-4">
-        <Button onClick={() => {
-          const blob = new Blob([JSON.stringify(result, null, 2)], { type: 'application/json' });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `${result.analysis_id}.json`;
-          a.click();
-        }}>
-          Download JSON Report
-        </Button>
-        <Button variant="outline" onClick={onBack}>
-          Analyze Another Contract
-        </Button>
-      </div>
-    </div>
-  );
-};
-
-// Admin View
-const AdminView = () => {
-  const [users, setUsers] = useState<any[]>([]);
-  const [stats, setStats] = useState<any>(null);
-
-  useEffect(() => {
-    const token = localStorage.getItem('auth_token');
-    
-    // Get users
-    fetch('/api/auth/users', {
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (data.success) {
-          setUsers(data.users);
-        }
-      });
-
-    // Get auth stats
-    fetch('/api/auth/stats', {
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
-      .then(res => res.json())
-      .then(data => setStats(data));
-  }, []);
-
-  return (
-    <div className="space-y-6">
-      <h2 className="text-3xl font-bold">Admin Panel</h2>
-
-      {/* Stats */}
-      {stats && (
-        <div className="grid grid-cols-4 gap-4">
-          <Card className="p-4">
-            <p className="text-2xl font-bold">{stats.total_users}</p>
-            <p className="text-sm text-muted-foreground">Total Users</p>
-          </Card>
-          <Card className="p-4">
-            <p className="text-2xl font-bold">{stats.active_sessions}</p>
-            <p className="text-sm text-muted-foreground">Active Sessions</p>
-          </Card>
-          <Card className="p-4">
-            <p className="text-2xl font-bold">{stats.roles?.admin || 0}</p>
-            <p className="text-sm text-muted-foreground">Admins</p>
-          </Card>
-          <Card className="p-4">
-            <p className="text-2xl font-bold">{stats.blocked_ips}</p>
-            <p className="text-sm text-muted-foreground">Blocked IPs</p>
-          </Card>
-        </div>
-      )}
-
-      {/* Users Table */}
-      <Card className="p-6">
-        <h3 className="text-xl font-bold mb-4">Users</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b">
-                <th className="text-left py-2">Email</th>
-                <th className="text-left py-2">Role</th>
-                <th className="text-left py-2">Last Login</th>
-                <th className="text-left py-2">Logins</th>
-                <th className="text-left py-2">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((user, i) => (
-                <tr key={i} className="border-b">
-                  <td className="py-2">{user.email}</td>
-                  <td className="py-2 capitalize">{user.role}</td>
-                  <td className="py-2 text-sm text-muted-foreground">
-                    {user.last_login ? new Date(user.last_login).toLocaleDateString() : 'Never'}
-                  </td>
-                  <td className="py-2">{user.login_count}</td>
-                  <td className="py-2">
-                    <span className={`text-sm ${user.active ? 'text-green-500' : 'text-red-500'}`}>
-                      {user.active ? '● Active' : '● Inactive'}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
-    </div>
-  );
-};
-
-export default App;

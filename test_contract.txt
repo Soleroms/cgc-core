@@ -1,0 +1,82 @@
+EMPLOYMENT AGREEMENT
+
+This Agreement is entered into on January 15, 2025, between:
+- TechCorp Inc. ("Employer"), located at 123 Tech Street, San Francisco, CA
+- John Smith ("Employee"), residing at 456 Main St, San Francisco, CA
+
+TERMS AND CONDITIONS:
+
+1. POSITION: Software Engineer, Full Stack Development
+2. SALARY: $120,000 per year, paid bi-weekly
+3. START DATE: February 1, 2025
+4. TERM: 2 years with 30-day termination notice by either party
+5. BENEFITS: Health insurance, dental, vision, 401k with 5% match
+6. CONFIDENTIALITY: Employee agrees to protect all proprietary information
+7. NON-COMPETE: 6 months post-termination within 50-mile radius
+8. INTELLECTUAL PROPERTY: All work product belongs to Employer
+9. GOVERNING LAW: State of California
+10. DISPUTE RESOLUTION: Binding arbitration in San Francisco
+
+Both parties agree to comply with all federal and state employment laws.
+
+SIGNATURES:
+[Employer] _________________ Date: _______
+[Employee] _________________ Date: _______
+```
+
+**Guarda** y sube en el sistema.
+
+---
+
+## 🔥 **LO QUE DEBERÍAS VER:**
+
+### **En la terminal del servidor:**
+```
+🔄 Routing through CGC CORE governance...
+
+🔄 CGC LOOP: Orchestrating CGC-20251114...
+   1️⃣ PAN: Analyzing data...
+   2️⃣ ECM: Calibrating ethics...
+   3️⃣ PFM: Predicting outcome...
+   4️⃣ SDA: Generating insights...
+   5️⃣ CGC: Synthesizing decision...
+   6️⃣ TCO: Logging to audit trail...
+   ✅ Decision: APPROVED
+   ⏱️  Total time: 234.5ms
+```
+
+### **En el navegador (results):**
+```
+✅ Analysis Complete
+
+Contract Type: Employment Agreement
+Risk Level: LOW-MEDIUM
+Compliance Score: 87.3%
+
+CGC GOVERNANCE:
+✅ Approved by CGC CORE
+✅ Confidence: 87.7%
+✅ Modules executed: 6/6
+✅ Audit hash: 0x1a2b3c4d...
+✅ Processing time: 234ms
+
+AI Analysis:
+[Análisis detallado del contrato...]
+
+Key Findings:
+- Standard employment terms
+- Reasonable non-compete clause
+- California law compliant
+- Clear termination conditions
+
+Recommendations:
+1. Review non-compete radius
+2. Consider IP clause specifics
+3. Verify arbitration terms
+```
+
+### **Dashboard actualizado:**
+```
+Total Decisions: 2 → 3
+Contracts Analyzed: 0 → 1
+Audit Entries: 1 → 2

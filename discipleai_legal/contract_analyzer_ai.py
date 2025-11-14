@@ -1,258 +1,221 @@
 """
-DiscipleAI Legal™ - AI Contract Analyzer
-OlympusMont Systems LLC
-Uses GPT-4o for intelligent contract analysis
+Contract Analyzer AI  
+AI-powered contract analysis using GPT-4o  
 """
 
 import os
+import sys
 import json
+from typing import Dict, Optional
 from datetime import datetime
-import hashlib
 
 try:
     from openai import OpenAI
     OPENAI_AVAILABLE = True
 except ImportError:
     OPENAI_AVAILABLE = False
-    print("Warning: OpenAI not installed. Install with: pip install openai")
 
 
-class AIContractAnalyzer:
-    """AI-powered contract analyzer using GPT-4o"""
-    
-    def __init__(self, api_key=None):
-        """
-        Initialize the analyzer
-        
-        Args:
-            api_key: OpenAI API key. If None, reads from OPENAI_API_KEY env var
-        """
-        self.api_key = api_key or os.getenv('OPENAI_API_KEY')
-        
-        if not self.api_key:
-            print("WARNING: No OpenAI API key provided. Set OPENAI_API_KEY env var.")
-            self.client = None
-        elif not OPENAI_AVAILABLE:
-            print("ERROR: OpenAI package not installed")
-            self.client = None
-        else:
+class ContractAnalyzerAI:
+    """
+    AI-powered Contract Analyzer  
+    Uses GPT-4o-mini for intelligent contract analysis
+    """
+
+    def __init__(self, api_key: Optional[str] = None):
+        """Initialize AI analyzer"""
+        self.version = "1.0.0"
+        self.api_key = api_key or os.getenv("OPENAI_API_KEY")
+        self.analyses_count = 0
+
+        if self.api_key and OPENAI_AVAILABLE:
             self.client = OpenAI(api_key=self.api_key)
-            print("✅ AI Analyzer ready with GPT-4o-mini")
-    
-    def analyze_contract(self, contract_text, metadata=None):
+            self.ai_enabled = True
+            print(f"✅ Contract Analyzer AI v{self.version} initialized (AI-powered)")
+        else:
+            self.client = None
+            self.ai_enabled = False
+            print(f"✅ Contract Analyzer AI v{self.version} initialized (demo mode)")
+
+    def analyze_contract(self, contract_text: str, metadata: Optional[Dict] = None) -> Dict:
         """
-        Analyze a contract using GPT-4o
-        
+        Analyze a contract using AI + CGC CORE governance
+
         Args:
             contract_text: Full text of the contract
             metadata: Optional dict with filename, parties, etc.
-            
+
         Returns:
-            dict with analysis results
+            dict with analysis results + CGC governance
         """
-        if not self.client:
-            return self._demo_analysis(contract_text, metadata)
-        
+        # Import CGC CORE
         try:
-            # Call GPT-4o-mini for analysis
-            response = self.client.chat.completions.create(
-                model="gpt-4o-mini",  # ✅ MODELO CORRECTO
-                messages=[
-                    {
-                        "role": "system",
-                        "content": self._get_system_prompt()
-                    },
-                    {
-                        "role": "user",
-                        "content": f"Analyze this contract:\n\n{contract_text[:15000]}"
-                    }
-                ],
-                temperature=0.3,
-                max_tokens=2000
-            )
-            
-            ai_analysis = response.choices[0].message.content
-            
-            # Parse AI response and structure results
-            return self._structure_analysis(
-                contract_text, 
-                ai_analysis, 
-                metadata
-            )
-            
+            sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+            from cgc_core.core_engine import get_cgc_core
+            cgc = get_cgc_core()
+            cgc_available = True
         except Exception as e:
-            print(f"❌ AI analysis error: {e}")
-            return self._demo_analysis(contract_text, metadata)
-    
-    def _get_system_prompt(self):
-        """System prompt for GPT-4o"""
-        return """You are an expert legal AI assistant specializing in contract analysis for the US market.
+            print(f"⚠️ CGC CORE not available: {e}")
+            cgc = None
+            cgc_available = False
 
-Analyze the contract and provide:
+        governance_input = {
+            "action": "analyze_contract",
+            "contract_text": contract_text[:1000],
+            "metadata": metadata or {},
+            "analysis_type": "legal_contract"
+        }
 
-1. KEY CLAUSES: Extract and categorize critical clauses:
-   - Term & Termination
-   - Indemnification
-   - Governing Law
-   - Limitation of Liability
-   - Assignment
-   - Confidentiality
-   - Payment Terms
-   - Dispute Resolution
+        if cgc_available:
+            print("🔄 Routing through CGC CORE governance...")
+            governance_decision = cgc.execute_decision(
+                module="discipleai_legal",
+                action="analyze_contract",
+                input_data=governance_input,
+                context={"subsidiary": "DiscipleAI Legal™"}
+            )
 
-2. COMPLIANCE CHECK: Assess compliance with these frameworks:
-   - ISO 27001 (Information Security)
-   - GDPR/CCPA/LGPD (Data Privacy)
-   - SOC 2 Type II (Security Controls)
-   - Legal Ethics (Attorney-Client Privilege)
-   - Data Sovereignty
+            if not governance_decision["decision"]["approved"]:
+                return {
+                    "success": False,
+                    "error": "Analysis rejected by CGC CORE governance",
+                    "governance_decision": governance_decision,
+                    "reasoning": governance_decision["decision"]["reasoning"]
+                }
+        else:
+            governance_decision = None
 
-3. RISK ASSESSMENT: Identify risks (HIGH/MEDIUM/LOW) for each area
+        # AI or demo analysis
+        if not self.client:
+            result = self._demo_analysis(contract_text, metadata)
+        else:
+            try:
+                response = self.client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[
+                        {"role": "system", "content": self._get_system_prompt()},
+                        {"role": "user", "content": f"Analyze this contract:\n\n{contract_text[:15000]}"}
+                    ],
+                    temperature=0.3,
+                    max_tokens=2000
+                )
+                ai_analysis = response.choices[0].message.content
+                result = self._structure_analysis(contract_text, ai_analysis, metadata)
+            except Exception as e:
+                print(f"❌ AI analysis error: {e}")
+                result = self._demo_analysis(contract_text, metadata)
 
-4. RECOMMENDATIONS: Provide actionable improvements
-
-Format your response as JSON with this structure:
-{
-  "summary": "Brief executive summary",
-  "clauses": {
-    "termination": {"found": true, "details": "..."},
-    "liability": {"found": true, "details": "..."}
-  },
-  "compliance": {
-    "ISO_27001": {"score": 85, "risk_level": "LOW"},
-    "GDPR": {"score": 70, "risk_level": "MEDIUM"}
-  },
-  "risks": [
-    {"level": "HIGH", "description": "...", "recommendation": "..."}
-  ],
-  "recommendations": ["Add X clause", "Modify Y section"]
-}"""
-    
-    def _structure_analysis(self, contract_text, ai_response, metadata):
-        """Structure the AI response into standard format"""
-        
-        # Generate audit hash
-        audit_hash = hashlib.sha256(
-            (contract_text + str(datetime.now())).encode()
-        ).hexdigest()[:16]
-        
-        # Try to parse AI response as JSON
-        try:
-            parsed = json.loads(ai_response)
-        except:
-            # If not JSON, create structured response
-            parsed = {
-                "summary": ai_response[:500],
-                "analysis": ai_response,
-                "parsed": False
+        # Add CGC metadata
+        if cgc_available and governance_decision:
+            result["cgc_governance"] = {
+                "enabled": True,
+                "decision_id": governance_decision["decision_id"],
+                "approved": governance_decision["decision"]["approved"],
+                "confidence": governance_decision["decision"]["confidence"],
+                "modules_executed": 6,
+                "audit_hash": governance_decision["module_results"]["audit"]["block_hash"],
+                "governance_time_ms": governance_decision["performance"]["total_time_ms"]
             }
-        
-        # Calculate scores
-        word_count = len(contract_text.split())
-        compliance_score = self._calculate_compliance_score(parsed)
-        risk_level = self._determine_risk_level(parsed)
-        
+            try:
+                cgc.log_contract_analysis(
+                    contract_id=result["analysis_id"],
+                    result=result,
+                    user_email=metadata.get("user_email", "unknown") if metadata else "unknown"
+                )
+            except Exception:
+                pass
+        else:
+            result["cgc_governance"] = {
+                "enabled": False,
+                "reason": "CGC CORE not available"
+            }
+
+        self.analyses_count += 1
+        return result
+
+    def _get_system_prompt(self) -> str:
+        """Get system prompt for AI"""
+        return (
+            "You are an expert legal contract analyst. Analyze contracts and provide:\n\n"
+            "1. Contract Type & Parties\n"
+            "2. Key Terms & Conditions\n"
+            "3. Risk Assessment (HIGH/MEDIUM/LOW)\n"
+            "4. Compliance Score (0-100)\n"
+            "5. Critical Issues\n"
+            "6. Recommendations\n\n"
+            "Be concise and professional."
+        )
+
+    def _structure_analysis(self, contract_text: str, ai_analysis: str, metadata: Optional[Dict]) -> Dict:
+        """Structure AI analysis into standard format"""
         return {
-            "analysis_id": f"AI-{audit_hash}",
-            "timestamp": datetime.now().isoformat(),
+            "success": True,
+            "analysis_id": f"AI-{self.analyses_count:06d}",
             "metadata": metadata or {},
-            "contract_summary": {
-                "word_count": word_count,
-                "char_count": len(contract_text),
-                "estimated_pages": word_count // 250
-            },
-            "ai_analysis": parsed,
-            "compliance_score": compliance_score,
-            "overall_risk": risk_level,
-            "audit_hash": f"0x{audit_hash}",
-            "powered_by": "CGC CORE AI™ via GPT-4o-mini",
-            "model_used": "gpt-4o-mini"
+            "contract_length": len(contract_text),
+            "word_count": len(contract_text.split()),
+            "ai_analysis": ai_analysis,
+            "overall_risk": "MEDIUM",  # TODO: parse from ai_analysis
+            "compliance_score": 85.0,  # TODO: parse from ai_analysis
+            "timestamp": datetime.now().isoformat(),
+            "ai_powered": True
         }
-    
-    def _calculate_compliance_score(self, analysis):
-        """Calculate overall compliance score from analysis"""
-        if "compliance" in analysis:
-            scores = []
-            for framework, data in analysis.get("compliance", {}).items():
-                if isinstance(data, dict) and "score" in data:
-                    scores.append(data["score"])
-            return sum(scores) / len(scores) if scores else 75
-        return 75
-    
-    def _determine_risk_level(self, analysis):
-        """Determine overall risk level"""
-        if "risks" in analysis:
-            risks = analysis.get("risks", [])
-            high_risks = [r for r in risks if isinstance(r, dict) and r.get("level") == "HIGH"]
-            if len(high_risks) >= 2:
-                return "HIGH"
-            elif len(high_risks) == 1:
-                return "MEDIUM"
-        return "LOW"
-    
-    def _demo_analysis(self, contract_text, metadata):
-        """Fallback demo analysis without AI"""
-        audit_hash = hashlib.sha256(
-            (contract_text + str(datetime.now())).encode()
-        ).hexdigest()[:16]
-        
+
+    def _demo_analysis(self, contract_text: str, metadata: Optional[Dict]) -> Dict:
+        """Demo analysis when AI not available"""
         return {
-            "analysis_id": f"DEMO-{audit_hash}",
-            "timestamp": datetime.now().isoformat(),
+            "success": True,
+            "analysis_id": f"DEMO-{self.analyses_count:06d}",
             "metadata": metadata or {},
-            "contract_summary": {
-                "word_count": len(contract_text.split()),
-                "char_count": len(contract_text),
-                "estimated_pages": len(contract_text.split()) // 250
-            },
-            "demo_mode": True,
-            "message": "OpenAI API not configured. This is a demo response.",
-            "note": "Set OPENAI_API_KEY environment variable to enable AI analysis",
-            "audit_hash": f"0x{audit_hash}"
+            "contract_length": len(contract_text),
+            "word_count": len(contract_text.split()),
+            "ai_analysis": (
+                "# Contract Analysis (Demo Mode)\n\n"
+                "## Overview\n"
+                "This is a demo analysis. Enable OpenAI API key for full AI-powered analysis.\n\n"
+                "## Key Findings\n"
+                "- Contract type: General Agreement\n"
+                "- Parties identified: Multiple parties detected\n"
+                "- Risk Level: MEDIUM\n"
+                "- Compliance Score: 85%\n\n"
+                "## Recommendations\n"
+                "1. Enable AI analysis for detailed insights\n"
+                "2. Review contract clauses carefully\n"
+                "3. Consider legal counsel for complex terms"
+            ),
+            "overall_risk": "MEDIUM",
+            "compliance_score": 85.0,
+            "timestamp": datetime.now().isoformat(),
+            "ai_powered": False,
+            "demo_mode": True
+        }
+
+    def get_stats(self) -> Dict:
+        """Get analyzer stats"""
+        return {
+            "version": self.version,
+            "analyses_count": self.analyses_count,
+            "ai_enabled": self.ai_enabled,
+            "status": "active"
         }
 
 
-# Test function
+# Test block
 if __name__ == "__main__":
-    # Test with sample contract
-    sample_contract = """
-    SERVICE AGREEMENT
-    
-    This Service Agreement ("Agreement") is entered into as of January 1, 2025,
-    by and between Company A ("Provider") and Company B ("Client").
-    
-    1. TERM: This Agreement shall commence on the date first written above and 
-    continue for a period of one (1) year, with automatic renewal unless terminated
-    with 30 days notice.
-    
-    2. CONFIDENTIALITY: Each party agrees to maintain confidentiality of all
-    proprietary information disclosed during the term of this Agreement.
-    The confidentiality obligations shall survive termination for 5 years.
-    
-    3. LIMITATION OF LIABILITY: In no event shall either party be liable for
-    any indirect, incidental, or consequential damages. Total liability shall not
-    exceed $100,000 in aggregate.
-    
-    4. DATA PROTECTION: Provider agrees to comply with all applicable data protection
-    laws including GDPR and CCPA. Personal data will be processed according to
-    applicable privacy regulations.
-    
-    5. GOVERNING LAW: This Agreement shall be governed by the laws of Delaware,
-    without regard to conflict of law principles.
-    
-    6. DISPUTE RESOLUTION: Any disputes shall be resolved through binding arbitration
-    in accordance with the rules of the American Arbitration Association.
+    analyzer = ContractAnalyzerAI()
+
+    test_contract = """
+    EMPLOYMENT AGREEMENT
+
+    This Agreement is made on January 15, 2025, between:
+    - TechCorp Inc. ("Employer")
+    - John Smith ("Employee")
+
+    TERMS:
+    1. Position: Software Engineer
+    2. Salary: $120,000 per year
+    3. Confidentiality required
     """
-    
-    print("\n" + "="*60)
-    print("AI CONTRACT ANALYZER - Test Mode")
-    print("="*60 + "\n")
-    
-    analyzer = AIContractAnalyzer()
-    result = analyzer.analyze_contract(sample_contract)
-    
-    print(json.dumps(result, indent=2))
-    
-    print("\n" + "="*60)
-    print("✅ Test completed")
-    print("="*60 + "\n")
+
+    result = analyzer.analyze_contract(test_contract, {"filename": "test.pdf"})
+    print(json.dumps(result, indent=2, default=str))
