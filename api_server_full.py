@@ -146,6 +146,8 @@ class APIHandler(BaseHTTPRequestHandler):
             }).encode())
             return
         
+        # Opcional: Agregar aquí un chequeo de autenticación/autorización si es necesario
+        
         result = contract_analyzer.analyze_contract(
             contract_text,
             metadata={'filename': filename}
@@ -159,34 +161,41 @@ class APIHandler(BaseHTTPRequestHandler):
             try:
                 real_metrics = cgc_core.get_real_metrics()
                 
+                # Asegura que todas las claves esperadas estén presentes
                 metrics = {
-                    'total_decisions': real_metrics['total_decisions'],
-                    'total_contracts': real_metrics['total_contracts'],
-                    'avg_compliance_score': real_metrics['avg_compliance_score'],
-                    'system_health': real_metrics['system_health'],
-                    'audit_entries': real_metrics['audit_entries'],
-                    'modules': real_metrics['modules'],
+                    'total_decisions': real_metrics.get('total_decisions', 0),
+                    'total_contracts': real_metrics.get('total_contracts', 0),
+                    'avg_compliance_score': real_metrics.get('avg_compliance_score', 0.0),
+                    'system_health': real_metrics.get('system_health', 0.0),
+                    'audit_entries': real_metrics.get('audit_entries', 0),
+                    'modules': real_metrics.get('modules', {}), # Usa el dict real o un dict vacío
                     'cgc_core_active': True,
                     'timestamp': datetime.now().isoformat()
                 }
             except Exception as e:
                 print(f"Error getting CGC metrics: {e}")
-                metrics = self._get_demo_metrics()
+                # Fallback al modo demo si falla la conexión a CGC, manteniendo la estructura
+                metrics = self._get_demo_metrics() 
         else:
+            # Modo demo/CGC no disponible
             metrics = self._get_demo_metrics()
         
         self._set_headers(200)
         self.wfile.write(json.dumps(metrics, indent=2).encode())
     
     def _get_demo_metrics(self):
+        # CORRECCIÓN: Estructura de métricas con valores por defecto/cero para modo INACTIVO.
+        # Esto asegura que el frontend no falle al intentar acceder a 'modules' o 'total_decisions'.
         return {
-            'total_decisions': 12400000,
-            'total_contracts': 1547832,
-            'avg_compliance_score': 96.8,
-            'system_health': 98.0,
-            'audit_entries': 2847391,
+            'total_decisions': 0,
+            'total_contracts': 0,
+            'avg_compliance_score': 0.0,
+            'system_health': 0.0,
+            'audit_entries': 0,
             'cgc_core_active': False,
-            'demo_mode': True
+            'demo_mode': True,
+            # Se devuelve un diccionario vacío para 'modules', lo que hace que el bloque de UI se oculte correctamente (gracias a stats?.cgc_core_active && stats?.modules)
+            'modules': {} 
         }
     
     def _handle_health(self):
@@ -199,7 +208,8 @@ class APIHandler(BaseHTTPRequestHandler):
         self.wfile.write(json.dumps(health).encode())
 
 
-def run_server(port=8000):
+def run_server(port=8080): 
+    # Mantenemos 8080 para consistencia con la ejecución y el desarrollo
     server = HTTPServer(('', port), APIHandler)
     print(f'\n✅ Server running on http://localhost:{port}')
     print(f'   CGC CORE: {"ACTIVE" if CGC_AVAILABLE else "INACTIVE"}')
