@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Lock, Mail, User, AlertCircle, Loader2 } from 'lucide-react';
+import { Lock, Mail, AlertCircle, Loader2, CheckCircle2 } from 'lucide-react';
 
 interface SignupFormProps {
   onSuccess: (token: string, user: any) => void;
@@ -14,41 +14,64 @@ export const SignupForm = ({ onSuccess, onSwitchToLogin }: SignupFormProps) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Real-time password validation
+  const passwordRequirements = {
+    minLength: password.length >= 8,
+    hasUppercase: /[A-Z]/.test(password),
+    hasNumber: /[0-9]/.test(password),
+    matches: password === confirmPassword && password.length > 0
+  };
+
+  const isPasswordValid = Object.values(passwordRequirements).every(req => req);
+
+  // Real-time email validation
+  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  const isEmailValid = emailRegex.test(email);
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
-    // Validate
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters');
+    // Frontend validation
+    if (!isEmailValid) {
+      setError('Please enter a valid email address');
       return;
     }
 
-    if (password !== confirmPassword) {
-      setError('Passwords do not match');
+    if (!isPasswordValid) {
+      setError('Please meet all password requirements');
       return;
     }
 
     setLoading(true);
 
     try {
+      // Create account
       const response = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ 
+          email: email.toLowerCase().trim(), 
+          password,
+          name: name.trim()
+        })
       });
 
       const data = await response.json();
 
       if (data.success) {
-        // Auto-login after signup
+        // Auto-login after successful signup
         const loginResponse = await fetch('/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password })
+          body: JSON.stringify({ 
+            email: email.toLowerCase().trim(), 
+            password 
+          })
         });
 
         const loginData = await loginResponse.json();
@@ -57,12 +80,15 @@ export const SignupForm = ({ onSuccess, onSwitchToLogin }: SignupFormProps) => {
           localStorage.setItem('auth_token', loginData.token);
           localStorage.setItem('user', JSON.stringify(loginData.user));
           onSuccess(loginData.token, loginData.user);
+        } else {
+          setError(loginData.error || 'Auto-login failed. Please sign in manually.');
         }
       } else {
-        setError(data.error || 'Signup failed');
+        setError(data.error || 'Signup failed. Please try again.');
       }
     } catch (err) {
-      setError('Connection error. Please try again.');
+      console.error('Signup error:', err);
+      setError('Connection error. Please check your internet and try again.');
     } finally {
       setLoading(false);
     }
@@ -88,7 +114,20 @@ export const SignupForm = ({ onSuccess, onSwitchToLogin }: SignupFormProps) => {
         )}
 
         <div className="space-y-2">
-          <label className="text-sm font-medium">Email</label>
+          <label className="text-sm font-medium">Name (Optional)</label>
+          <div className="relative">
+            <Input
+              type="text"
+              placeholder="Your name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="pl-3"
+            />
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Email *</label>
           <div className="relative">
             <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
             <Input
@@ -99,43 +138,94 @@ export const SignupForm = ({ onSuccess, onSwitchToLogin }: SignupFormProps) => {
               className="pl-10"
               required
             />
+            {email && (
+              <div className="absolute right-3 top-3">
+                {isEmailValid ? (
+                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                ) : (
+                  <AlertCircle className="h-4 w-4 text-red-500" />
+                )}
+              </div>
+            )}
           </div>
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-medium">Password</label>
+          <label className="text-sm font-medium">Password *</label>
           <div className="relative">
             <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
             <Input
               type="password"
-              placeholder="Min 8 characters"
+              placeholder="Create strong password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="pl-10"
               required
             />
           </div>
+          
+          {/* Password requirements */}
+          {password && (
+            <div className="space-y-1 mt-2 text-xs">
+              <div className={`flex items-center gap-2 ${passwordRequirements.minLength ? 'text-green-600' : 'text-muted-foreground'}`}>
+                {passwordRequirements.minLength ? (
+                  <CheckCircle2 className="h-3 w-3" />
+                ) : (
+                  <AlertCircle className="h-3 w-3" />
+                )}
+                <span>At least 8 characters</span>
+              </div>
+              <div className={`flex items-center gap-2 ${passwordRequirements.hasUppercase ? 'text-green-600' : 'text-muted-foreground'}`}>
+                {passwordRequirements.hasUppercase ? (
+                  <CheckCircle2 className="h-3 w-3" />
+                ) : (
+                  <AlertCircle className="h-3 w-3" />
+                )}
+                <span>One uppercase letter</span>
+              </div>
+              <div className={`flex items-center gap-2 ${passwordRequirements.hasNumber ? 'text-green-600' : 'text-muted-foreground'}`}>
+                {passwordRequirements.hasNumber ? (
+                  <CheckCircle2 className="h-3 w-3" />
+                ) : (
+                  <AlertCircle className="h-3 w-3" />
+                )}
+                <span>One number</span>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-medium">Confirm Password</label>
+          <label className="text-sm font-medium">Confirm Password *</label>
           <div className="relative">
             <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
             <Input
               type="password"
-              placeholder="Confirm password"
+              placeholder="Confirm your password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               className="pl-10"
               required
             />
+            {confirmPassword && (
+              <div className="absolute right-3 top-3">
+                {passwordRequirements.matches ? (
+                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                ) : (
+                  <AlertCircle className="h-4 w-4 text-red-500" />
+                )}
+              </div>
+            )}
           </div>
+          {confirmPassword && !passwordRequirements.matches && (
+            <p className="text-xs text-red-500">Passwords do not match</p>
+          )}
         </div>
 
         <Button 
           type="submit" 
           className="w-full"
-          disabled={loading}
+          disabled={loading || !isEmailValid || !isPasswordValid}
         >
           {loading ? (
             <>
@@ -156,6 +246,10 @@ export const SignupForm = ({ onSuccess, onSwitchToLogin }: SignupFormProps) => {
             Already have an account? Sign in
           </button>
         </div>
+
+        <p className="text-xs text-muted-foreground text-center mt-4">
+          By creating an account, you agree to our Terms of Service and Privacy Policy
+        </p>
       </form>
     </Card>
   );

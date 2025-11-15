@@ -25,23 +25,36 @@ export const LoginForm = ({ onSuccess, onSwitchToSignup }: LoginFormProps) => {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ 
+          email: email.toLowerCase().trim(), 
+          password 
+        })
       });
 
       const data = await response.json();
 
       if (data.success) {
+        // Store auth data
         localStorage.setItem('auth_token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
+        
+        // Success callback
         onSuccess(data.token, data.user);
       } else {
-        setError(data.error || 'Login failed');
+        setError(data.error || 'Login failed. Please check your credentials.');
       }
     } catch (err) {
-      setError('Connection error. Please try again.');
+      console.error('Login error:', err);
+      setError('Connection error. Please check your internet and try again.');
     } finally {
       setLoading(false);
     }
+  };
+
+  // Demo credentials helper
+  const fillDemoCredentials = () => {
+    setEmail('admin@olympusmont.com');
+    setPassword('ChangeMe123!');
   };
 
   return (
@@ -69,11 +82,12 @@ export const LoginForm = ({ onSuccess, onSwitchToSignup }: LoginFormProps) => {
             <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
             <Input
               type="email"
-              placeholder="admin@olympusmont.com"
+              placeholder="you@company.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="pl-10"
               required
+              autoComplete="email"
             />
           </div>
         </div>
@@ -89,6 +103,7 @@ export const LoginForm = ({ onSuccess, onSwitchToSignup }: LoginFormProps) => {
               onChange={(e) => setPassword(e.target.value)}
               className="pl-10"
               required
+              autoComplete="current-password"
             />
           </div>
         </div>
@@ -96,7 +111,7 @@ export const LoginForm = ({ onSuccess, onSwitchToSignup }: LoginFormProps) => {
         <Button 
           type="submit" 
           className="w-full"
-          disabled={loading}
+          disabled={loading || !email || !password}
         >
           {loading ? (
             <>
@@ -108,16 +123,31 @@ export const LoginForm = ({ onSuccess, onSwitchToSignup }: LoginFormProps) => {
           )}
         </Button>
 
-        <div className="text-center text-sm">
+        <div className="flex items-center justify-between text-sm">
+          <button
+            type="button"
+            onClick={fillDemoCredentials}
+            className="text-muted-foreground hover:text-primary transition-colors"
+          >
+            Use demo credentials
+          </button>
+          
           <button
             type="button"
             onClick={onSwitchToSignup}
             className="text-primary hover:underline"
           >
-            Don't have an account? Sign up
+            Create account
           </button>
         </div>
       </form>
+
+      <div className="mt-6 p-4 bg-muted rounded-lg">
+        <p className="text-xs text-muted-foreground text-center">
+          <strong>Demo Account:</strong><br />
+          admin@olympusmont.com / ChangeMe123!
+        </p>
+      </div>
     </Card>
   );
 };
