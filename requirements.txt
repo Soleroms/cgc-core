@@ -1,2 +1,1 @@
-# CGC Core Requirements
-# (vacío por ahora, agrega dependencias si las necesitas)
+openai>=1.0.0
