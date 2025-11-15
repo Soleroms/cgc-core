@@ -1,25 +1,25 @@
 """
 DiscipleAI Legal™
-OlympusMont Systems LLC
-
-AI-Powered Legal Analysis with Ethical Governance
-Subsidiary #1 of OlympusMont Systems
+Complete legal AI suite
 """
 
 __version__ = "1.0.0"
 __subsidiary__ = "DiscipleAI Legal"
 __parent__ = "OlympusMont Systems LLC"
 
-from .legal_core import LegalCore
-from .contract_analyzer import ContractAnalyzer
+from .contract_analyzer_ai import ContractAnalyzerAI
 from .compliance_checker import ComplianceChecker
 from .risk_assessor import RiskAssessor
+from .clause_extractor import ClauseExtractor
+from .legal_research_engine import LegalResearchEngine
 
 __all__ = [
-    'LegalCore',
-    'ContractAnalyzer', 
+    'ContractAnalyzerAI',
     'ComplianceChecker',
-    'RiskAssessor'
+    'RiskAssessor',
+    'ClauseExtractor',
+    'LegalResearchEngine'
 ]
 
 print(f"✅ {__subsidiary__} v{__version__} initialized")
+print(f"   Complete legal AI suite loaded")
