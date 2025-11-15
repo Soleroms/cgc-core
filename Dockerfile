@@ -27,8 +27,8 @@ COPY api_server_full.py ./
 # Copy compiled frontend
 COPY --from=frontend /app/dist ./dist
 
-# Expose port for Railway
+# CORRECCIÓN CRÍTICA: Alineamos el puerto a 8000 para que coincida con la configuración del servidor Python
 EXPOSE 8000
 
-# Start backend server
-CMD ["python3", "api_server_full.py"]
+# Usamos 'python' para mayor compatibilidad en imágenes slim
+CMD ["python", "api_server_full.py"]

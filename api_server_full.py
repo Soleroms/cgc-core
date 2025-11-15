@@ -63,10 +63,11 @@ class APIHandler(BaseHTTPRequestHandler):
             else:
                 self._set_headers(404)
                 self.wfile.write(b'Not found')
+        # CORRECCIÓN CRÍTICA: Responde tanto a '/health' (para el healthcheck) como a '/api/health'
+        elif path == '/health' or path == '/api/health':
+            self._handle_health()
         elif path == '/api/metrics':
             self._handle_metrics()
-        elif path == '/api/health':
-            self._handle_health()
         else:
             self._set_headers(404)
             self.wfile.write(json.dumps({'error': 'Not found'}).encode())
@@ -184,17 +185,15 @@ class APIHandler(BaseHTTPRequestHandler):
         self.wfile.write(json.dumps(metrics, indent=2).encode())
     
     def _get_demo_metrics(self):
-        # CORRECCIÓN: Estructura de métricas con valores por defecto/cero para modo INACTIVO.
-        # Esto asegura que el frontend no falle al intentar acceder a 'modules' o 'total_decisions'.
+        # Mantenemos los valores en cero/por defecto para modo INACTIVO.
         return {
-            'total_decisions': 0,
+            'total_decisions': 0, 
             'total_contracts': 0,
             'avg_compliance_score': 0.0,
             'system_health': 0.0,
             'audit_entries': 0,
             'cgc_core_active': False,
             'demo_mode': True,
-            # Se devuelve un diccionario vacío para 'modules', lo que hace que el bloque de UI se oculte correctamente (gracias a stats?.cgc_core_active && stats?.modules)
             'modules': {} 
         }
     
@@ -208,8 +207,8 @@ class APIHandler(BaseHTTPRequestHandler):
         self.wfile.write(json.dumps(health).encode())
 
 
-def run_server(port=8080): 
-    # Mantenemos 8080 para consistencia con la ejecución y el desarrollo
+def run_server(port=8000): 
+    # Mantenemos 8000 para consistencia con la ejecución y el desarrollo
     server = HTTPServer(('', port), APIHandler)
     print(f'\n✅ Server running on http://localhost:{port}')
     print(f'   CGC CORE: {"ACTIVE" if CGC_AVAILABLE else "INACTIVE"}')
@@ -223,4 +222,4 @@ def run_server(port=8080):
 
 
 if __name__ == '__main__':
-    run_server(8080)
+    run_server(8000)
