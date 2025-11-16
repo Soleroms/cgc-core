@@ -167,60 +167,82 @@ const DashboardView = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Flag to prevent state updates after component is unmounted
+    let isMounted = true; 
+    
+    const token = localStorage.getItem('auth_token');
+
     const fetchMetrics = async () => {
+      setLoading(true);
       try {
-        console.log(' Fetching metrics from API...');
+        console.log('🔍 Fetching metrics from API...');
        
-       const response = await fetch('/api/metrics',
- {
-  method: 'GET',
-  headers: {
-    // Si necesitas enviar un token o algo similar, aquí lo agregas
-    // Ejemplo: 'Authorization': `Bearer ${token}`
-  },
-});
-
-const data = await response.json();
-console.log(data);
-
+        // FIX: The original code had a syntax error and duplicate fetch calls here.
+        // We now correctly call fetch with the URL string and necessary options.
+        const response = await fetch('/api/metrics', {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`, // Pass token for authenticated requests
+            'Content-Type': 'application/json',
+          },
           cache: 'no-cache'
         });
         
         console.log('📡 Response status:', response.status);
         
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+          // If the server returns a 4xx or 5xx, throw an error
+          throw new Error(`HTTP error! Status: ${response.status}`);
         }
         
         const data = await response.json();
         console.log('✅ Metrics received:', data);
-        setStats(data);
+        
+        // Only update state if the component is still mounted
+        if (isMounted) {
+          setStats(data);
+        }
+
       } catch (err) {
         console.error('❌ Failed to fetch metrics:', err);
-        setStats({
-          total_decisions: 0,
-          total_contracts: 0,
-          avg_compliance_score: 0,
-          system_health: 0,
-          cgc_core_active: false,
-          demo_mode: true
-        });
+        // Set an empty state on failure (without demo/placeholder values)
+        if (isMounted) {
+            setStats(null);
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
+    // Run immediately and then set up the interval
     fetchMetrics();
     const interval = setInterval(fetchMetrics, 3000);
     
-    return () => clearInterval(interval);
-  }, []);
+    // Cleanup function runs when the component unmounts
+    return () => {
+        isMounted = false; 
+        clearInterval(interval);
+    };
+  }, []); // Empty dependency array means this runs only on mount/unmount
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
+    );
+  }
+  
+  // Display an error/no-data message if stats is null after loading
+  if (!stats) {
+    return (
+        <Card className="p-6 text-center h-64 flex flex-col justify-center items-center">
+            <Activity className="w-8 h-8 text-red-500 mb-4" />
+            <h3 className="text-xl font-bold mb-2 text-red-500">System Metrics Unavailable</h3>
+            <p className="text-muted-foreground">Could not connect to the CGC CORE™ API to fetch real-time data.</p>
+        </Card>
     );
   }
 
@@ -234,16 +256,16 @@ console.log(data);
               AI-powered contract analysis with cognitive governance
             </p>
           </div>
-          {stats?.cgc_core_active && (
+          {/* Status check based on data from the API */}
+          {stats?.cgc_core_active ? (
             <div className="flex items-center gap-2 px-4 py-2 bg-green-500/10 rounded-lg border border-green-500/20">
               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
               <span className="text-sm font-medium text-green-500">CGC CORE LIVE</span>
             </div>
-          )}
-          {stats?.demo_mode && (
+          ) : (
             <div className="flex items-center gap-2 px-4 py-2 bg-yellow-500/10 rounded-lg border border-yellow-500/20">
-              <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse" />
-              <span className="text-sm font-medium text-yellow-500">DEMO MODE</span>
+              <div className="w-2 h-2 bg-yellow-500 rounded-full" />
+              <span className="text-sm font-medium text-yellow-500">STANDBY MODE</span>
             </div>
           )}
         </div>
@@ -335,7 +357,7 @@ console.log(data);
             <span className={`text-sm font-medium ${
               stats?.cgc_core_active ? 'text-green-500' : 'text-yellow-500'
             }`}>
-              ● {stats?.cgc_core_active ? 'Active' : 'Demo Mode'}
+              ● {stats?.cgc_core_active ? 'Active' : 'Standby'}
             </span>
           </div>
           <div className="flex items-center justify-between">
