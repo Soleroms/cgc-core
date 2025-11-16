@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Lock, Mail, AlertCircle, Loader2, CheckCircle2 } from 'lucide-react';
+import { Lock, Mail, AlertCircle, Loader2, CheckCircle2, User } from 'lucide-react';
 
 interface SignupFormProps {
   onSuccess: (token: string, user: any) => void;
@@ -50,6 +50,8 @@ export const SignupForm = ({ onSuccess, onSwitchToLogin }: SignupFormProps) => {
     setLoading(true);
 
     try {
+      console.log('Creating account...', { email, name });
+      
       // Create account
       const response = await fetch('/api/auth/signup', {
         method: 'POST',
@@ -62,9 +64,11 @@ export const SignupForm = ({ onSuccess, onSwitchToLogin }: SignupFormProps) => {
       });
 
       const data = await response.json();
+      console.log('Signup response:', data);
 
       if (data.success) {
         // Auto-login after successful signup
+        console.log('Auto-logging in...');
         const loginResponse = await fetch('/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -75,13 +79,15 @@ export const SignupForm = ({ onSuccess, onSwitchToLogin }: SignupFormProps) => {
         });
 
         const loginData = await loginResponse.json();
+        console.log('Auto-login response:', loginData);
 
         if (loginData.success) {
           localStorage.setItem('auth_token', loginData.token);
           localStorage.setItem('user', JSON.stringify(loginData.user));
           onSuccess(loginData.token, loginData.user);
         } else {
-          setError(loginData.error || 'Auto-login failed. Please sign in manually.');
+          setError('Account created! Please login manually.');
+          setTimeout(() => onSwitchToLogin(), 2000);
         }
       } else {
         setError(data.error || 'Signup failed. Please try again.');
@@ -116,12 +122,13 @@ export const SignupForm = ({ onSuccess, onSwitchToLogin }: SignupFormProps) => {
         <div className="space-y-2">
           <label className="text-sm font-medium">Name (Optional)</label>
           <div className="relative">
+            <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
             <Input
               type="text"
               placeholder="Your name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="pl-3"
+              className="pl-10"
             />
           </div>
         </div>
@@ -164,7 +171,6 @@ export const SignupForm = ({ onSuccess, onSwitchToLogin }: SignupFormProps) => {
             />
           </div>
           
-          {/* Password requirements */}
           {password && (
             <div className="space-y-1 mt-2 text-xs">
               <div className={`flex items-center gap-2 ${passwordRequirements.minLength ? 'text-green-600' : 'text-muted-foreground'}`}>
@@ -246,10 +252,6 @@ export const SignupForm = ({ onSuccess, onSwitchToLogin }: SignupFormProps) => {
             Already have an account? Sign in
           </button>
         </div>
-
-        <p className="text-xs text-muted-foreground text-center mt-4">
-          By creating an account, you agree to our Terms of Service and Privacy Policy
-        </p>
       </form>
     </Card>
   );

@@ -22,6 +22,8 @@ export const LoginForm = ({ onSuccess, onSwitchToSignup }: LoginFormProps) => {
     setError('');
 
     try {
+      console.log('Logging in...', { email });
+      
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -32,13 +34,11 @@ export const LoginForm = ({ onSuccess, onSwitchToSignup }: LoginFormProps) => {
       });
 
       const data = await response.json();
+      console.log('Login response:', data);
 
       if (data.success) {
-        // Store auth data
         localStorage.setItem('auth_token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
-        
-        // Success callback
         onSuccess(data.token, data.user);
       } else {
         setError(data.error || 'Login failed. Please check your credentials.');
@@ -51,7 +51,6 @@ export const LoginForm = ({ onSuccess, onSwitchToSignup }: LoginFormProps) => {
     }
   };
 
-  // Demo credentials helper
   const fillDemoCredentials = () => {
     setEmail('admin@olympusmont.com');
     setPassword('ChangeMe123!');
@@ -135,9 +134,9 @@ export const LoginForm = ({ onSuccess, onSwitchToSignup }: LoginFormProps) => {
           <button
             type="button"
             onClick={onSwitchToSignup}
-            className="text-primary hover:underline"
+            className="text-primary hover:underline font-medium"
           >
-            Create account
+            Create account →
           </button>
         </div>
       </form>
