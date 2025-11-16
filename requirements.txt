@@ -1,1 +1,14 @@
+# Production dependencies - verified and tested
+# All packages available via pip
+
+# OpenAI API
 openai>=1.0.0
+
+# Password hashing - industry standard
+bcrypt>=4.0.0
+
+# Environment variables management
+python-dotenv>=1.0.0
+
+# CRÍTICO: Token de sesión para auth_system.py
+pyjwt>=2.0.0

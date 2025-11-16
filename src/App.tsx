@@ -170,7 +170,7 @@ const DashboardView = () => {
     const fetchMetrics = async () => {
       try {
         console.log('🔍 Fetching metrics from API...');
-        const response = await fetch('http://localhost:8080/api/metrics', {
+        const response = await fetch(/api/metrics', {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
