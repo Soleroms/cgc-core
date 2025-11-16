@@ -169,12 +169,20 @@ const DashboardView = () => {
   useEffect(() => {
     const fetchMetrics = async () => {
       try {
-        console.log('🔍 Fetching metrics from API...');
-        const response = await fetch(/api/metrics', {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+        console.log(' Fetching metrics from API...');
+       
+       const response = await fetch('/api/metrics',
+ {
+  method: 'GET',
+  headers: {
+    // Si necesitas enviar un token o algo similar, aquí lo agregas
+    // Ejemplo: 'Authorization': `Bearer ${token}`
+  },
+});
+
+const data = await response.json();
+console.log(data);
+
           cache: 'no-cache'
         });
         
