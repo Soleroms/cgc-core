@@ -6,7 +6,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Lock, Mail, AlertCircle, Loader2 } from 'lucide-react';
 
 interface LoginFormProps {
-  onSuccess: (token: string, user: any) => void;
+  // onSucces ya no necesita el token ni el usuario, solo notifica que el proceso terminó
+  onSuccess: () => void; 
   onSwitchToSignup: () => void;
 }
 
@@ -24,6 +25,7 @@ export const LoginForm = ({ onSuccess, onSwitchToSignup }: LoginFormProps) => {
     try {
       console.log('Logging in...', { email });
       
+      // Llamada a la API de Python para la autenticación
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -37,65 +39,61 @@ export const LoginForm = ({ onSuccess, onSwitchToSignup }: LoginFormProps) => {
       console.log('Login response:', data);
 
       if (data.success) {
-        localStorage.setItem('auth_token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
-        onSuccess(data.token, data.user);
+        // En un entorno de producción, la API de Python debería intercambiar credenciales por un
+        // token de Firebase Custom Auth para usarlo aquí.
+        // Dado que la integración completa está fuera de alcance, solo marcamos éxito.
+        // El estado de Auth de Firebase es el punto de verdad en App.tsx.
+        onSuccess(); 
       } else {
-        setError(data.error || 'Login failed. Please check your credentials.');
+        setError(data.message || 'Error de inicio de sesión. Credenciales incorrectas.');
       }
     } catch (err) {
-      console.error('Login error:', err);
-      setError('Connection error. Please check your internet and try again.');
+      console.error('Login failed:', err);
+      setError('No se pudo conectar con el servidor. Inténtalo de nuevo.');
     } finally {
       setLoading(false);
     }
   };
 
+  // Función para rellenar credenciales de demostración
   const fillDemoCredentials = () => {
     setEmail('admin@olympusmont.com');
     setPassword('ChangeMe123!');
+    setError('');
   };
 
   return (
-    <Card className="w-full max-w-md p-8">
-      <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold text-gradient-cognitive mb-2">
-          CGC CORE™
-        </h1>
-        <p className="text-muted-foreground">
-          Sign in to your account
-        </p>
-      </div>
-
-      <form onSubmit={handleLogin} className="space-y-4">
-        {error && (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Email</label>
+    <>
+      {error && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+      
+      <form onSubmit={handleLogin} className="space-y-6">
+        <div className="space-y-4">
+          {/* Campo de Correo Electrónico */}
           <div className="relative">
             <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
             <Input
+              id="email"
               type="email"
-              placeholder="you@company.com"
+              placeholder="Correo Electrónico"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="pl-10"
               required
               autoComplete="email"
+              autoFocus
             />
           </div>
-        </div>
 
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Password</label>
+          {/* Campo de Contraseña */}
           <div className="relative">
             <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
             <Input
+              id="password"
               type="password"
               placeholder="••••••••"
               value={password}
@@ -115,10 +113,10 @@ export const LoginForm = ({ onSuccess, onSwitchToSignup }: LoginFormProps) => {
           {loading ? (
             <>
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Signing in...
+              Iniciando sesión...
             </>
           ) : (
-            'Sign In'
+            'Iniciar Sesión'
           )}
         </Button>
 
@@ -128,7 +126,7 @@ export const LoginForm = ({ onSuccess, onSwitchToSignup }: LoginFormProps) => {
             onClick={fillDemoCredentials}
             className="text-muted-foreground hover:text-primary transition-colors"
           >
-            Use demo credentials
+            Usar credenciales de demostración
           </button>
           
           <button
@@ -136,17 +134,17 @@ export const LoginForm = ({ onSuccess, onSwitchToSignup }: LoginFormProps) => {
             onClick={onSwitchToSignup}
             className="text-primary hover:underline font-medium"
           >
-            Create account →
+            Crear cuenta →
           </button>
         </div>
       </form>
 
       <div className="mt-6 p-4 bg-muted rounded-lg">
         <p className="text-xs text-muted-foreground text-center">
-          <strong>Demo Account:</strong><br />
-          admin@olympusmont.com / ChangeMe123!
+          <strong>Cuenta Demo:</strong><br />
+          Email: admin@olympusmont.com | Contraseña: ChangeMe123!
         </p>
       </div>
-    </Card>
+    </>
   );
 };
