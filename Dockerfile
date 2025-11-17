@@ -1,34 +1,47 @@
 # Stage 1: Build frontend with Node.js
+# Use a lightweight base image for the build process
 FROM node:20-slim AS frontend
 
+# Set working directory inside the container
 WORKDIR /app
 
 # Install frontend dependencies
+# Copy package files first to leverage Docker layer caching
 COPY package*.json ./
-RUN npm install --legacy-peer-deps
+# Use --silent and --no-progress for cleaner output during install
+RUN npm install --legacy-peer-deps --silent --no-progress
 
-# Copy source code and build
+# Copy source code and build the frontend
 COPY . .
 RUN npm run build
 
-# Stage 2: Backend with Python
+# -----------------------------------------------------------------
+
+# Stage 2: Backend with Python (Production Server)
+# Use a specific, slim Python base image
 FROM python:3.11-slim
 
+# Set working directory inside the container
 WORKDIR /app
 
-# Install backend dependencies
+# 1. Install backend dependencies
+# Copy requirements file first
 COPY requirements.txt ./
+# Install dependencies. The double command handles restrictive environments (like Canvas)
+# by trying to install normally first, then without system path modification if needed.
 RUN pip install --no-cache-dir -r requirements.txt --break-system-packages || \
     pip install --no-cache-dir -r requirements.txt
 
-# Copy backend files
-COPY api_server_full.py ./
+# 2. Copy all backend source code.
+# CRITICAL: This ensures internal modules like 'discipleai_legal' are copied and found by Python.
+COPY . .
 
-# Copy compiled frontend
+# 3. Copy the compiled frontend static files from the build stage
 COPY --from=frontend /app/dist ./dist
 
-# CORRECCIÓN CRÍTICA: Alineamos el puerto a 8000 para que coincida con la configuración del servidor Python
+# 4. Expose the port the Python server will listen on
 EXPOSE 8000
 
-# Usamos 'python' para mayor compatibilidad en imágenes slim
+# 5. Command to start the Python server
+# Use 'python' for better compatibility in slim images
 CMD ["python", "api_server_full.py"]
