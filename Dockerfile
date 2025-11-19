@@ -1,47 +1,41 @@
-# Stage 1: Build frontend with Node.js
-# Use a lightweight base image for the build process
-FROM node:20-slim AS frontend
-
-# Set working directory inside the container
+# Frontend build
+FROM node:18-alpine AS frontend
 WORKDIR /app
-
-# Install frontend dependencies
-# Copy package files first to leverage Docker layer caching
 COPY package*.json ./
-# Use --silent and --no-progress for cleaner output during install
-RUN npm install --legacy-peer-deps --silent --no-progress
-
-# Copy source code and build the frontend
+RUN npm install --legacy-peer-deps
 COPY . .
 RUN npm run build
 
-# -----------------------------------------------------------------
-
-# Stage 2: Backend with Python (Production Server)
-# Use a specific, slim Python base image
+# Backend
 FROM python:3.11-slim
 
-# Set working directory inside the container
 WORKDIR /app
 
-# 1. Install backend dependencies
-# Copy requirements file first
-COPY requirements.txt ./
-# Install dependencies. The double command handles restrictive environments (like Canvas)
-# by trying to install normally first, then without system path modification if needed.
-RUN pip install --no-cache-dir -r requirements.txt --break-system-packages || \
-    pip install --no-cache-dir -r requirements.txt
+# Dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-# 2. Copy all backend source code.
-# CRITICAL: This ensures internal modules like 'discipleai_legal' are copied and found by Python.
-COPY . .
+# Python backend
+COPY api_server_full.py .
+COPY auth_system.py .
+COPY database.py .
+COPY config.py .
+COPY logging_config.py .
 
-# 3. Copy the compiled frontend static files from the build stage
+# CGC CORE™
+COPY cgc_core/ ./cgc_core/
+
+# DiscipleAI Legal™
+COPY discipleai_legal/ ./discipleai_legal/
+
+# Frontend
 COPY --from=frontend /app/dist ./dist
 
-# 4. Expose the port the Python server will listen on
-EXPOSE 8000
+# Directories
+RUN mkdir -p data logs
 
-# 5. Command to start the Python server
-# Use 'python' for better compatibility in slim images
+EXPOSE 8080
+
+HEALTHCHECK CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8080/api/health')" || exit 1
+
 CMD ["python", "api_server_full.py"]

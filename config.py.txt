@@ -1,0 +1,113 @@
+"""
+Configuration Module
+
+This module defines the application configuration using Pydantic's BaseSettings.
+It automatically loads settings from environment variables and/or a .env file.
+It also performs type conversion and validation.
+"""
+
+import os
+from pydantic import Field, SecretStr, ValidationError
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import Literal
+
+# --- 1. Determine which .env file to load ---
+# We check an environment variable 'ENV' to decide which file to load.
+# Default to 'development' if not set.
+#
+# To run in production: ENV=production python app.py
+# To run in development: python app.py (or ENV=development python app.py)
+#
+ENV = os.getenv("ENVIRONMENT", "development").lower()
+
+if ENV == "production":
+    env_file = ".env.prod"
+else:
+    # We use .env for development by default
+    env_file = ".env"
+
+print(f"Loading settings from: {env_file} (ENVIRONMENT='{ENV}')")
+
+
+# --- 2. Define the Settings Class ---
+class Settings(BaseSettings):
+    """
+    Application settings. Values are loaded from environment variables.
+    Type hints are used for automatic type conversion and validation.
+    """
+    
+    # Define which .env file(s) to load.
+    # We set `extra='ignore'` to allow other env variables to exist
+    # without causing a validation error.
+    model_config = SettingsConfigDict(
+        env_file=env_file, 
+        env_file_encoding='utf-8', 
+        extra='ignore'
+    )
+
+    # --- Application ---
+    # We use Field(default=...) for values with defaults.
+    # We can use aliases to map environment variables (e.g., 'ENVIRONMENT')
+    # to a different attribute name (e.g., 'env').
+    ENV: Literal['development', 'production', 'test'] = Field(
+        default='development', 
+        alias='ENVIRONMENT'
+    )
+    HOST: str = "0.0.0.0"
+    PORT: int = 8080
+
+    # --- Database ---
+    # If a variable has no default, Pydantic will *require* it to be set.
+    # The application will fail to start if it's missing.
+    # We also allow DATABASE_URL to be optional (str | None = None).
+    DATABASE_URL: str | None = None
+    DATABASE_PATH: str = "./data/production.db"
+
+    # --- OpenAI (Secret Management) ---
+    # Use `SecretStr` for sensitive values like API keys.
+    # This prevents the key from being printed in logs or exceptions.
+    # This field is REQUIRED and has no default.
+    OPENAI_API_KEY: SecretStr
+
+    # --- Logging ---
+    LOG_LEVEL: Literal['DEBUG', 'INFO', 'WARNING', 'ERROR'] = "INFO"
+    LOG_FILE: str = "./logs/app.log"
+    
+    # --- Branding (Static Constants) ---
+    # These are not loaded from .env, but are part of the config.
+    COMPANY_NAME: str = 'OlympusMont Systems LLC'
+    PRODUCT_NAME: str = 'DisciplineAI Assistant™'
+    TAGLINE: str = 'AI Efficiency, Software development and Automation Consulting'
+    CORE_ENGINE: str = 'CGC CORE™'
+    VERSION: str = '1.0.0'
+
+    def display(self):
+        """Prints a safe summary of the configuration."""
+        print("--- Configuration Summary ---")
+        print(f"  Environment: {self.ENV}")
+        print(f"  Host / Port: {self.HOST}:{self.PORT}")
+        print(f"  Log Level:   {self.LOG_LEVEL}")
+        
+        # Note: Printing a SecretStr automatically redacts it.
+        # This is safe to log.
+        print(f"  OpenAI Key:  {self.OPENAI_API_KEY}")
+        print("-------------------------------")
+
+
+# --- 3. Create a single, validated instance ---
+# This code runs when the file is imported.
+# If validation fails, the app will stop here with a clear error.
+try:
+    # Create the global config instance
+    config = Settings()
+
+    # Optional: Display the config on startup
+    # config.display()
+
+except ValidationError as e:
+    print("❌ CONFIGURATION ERROR: Failed to load settings.")
+    # Pydantic's error message is very clear about what is missing
+    print(e)
+    exit(1)
+
+# --- End of config.py ---

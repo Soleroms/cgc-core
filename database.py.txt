@@ -1,0 +1,118 @@
+"""
+Database Layer - PostgreSQL + JSON fallback
+"""
+
+import os
+import json
+from typing import Dict, Optional
+
+# Try PostgreSQL
+try:
+    import psycopg2
+    from psycopg2.extras import RealDictCursor
+    POSTGRES_AVAILABLE = True
+except ImportError:
+    POSTGRES_AVAILABLE = False
+
+
+class Database:
+    """Unified database interface"""
+    
+    def __init__(self):
+        self.postgres_url = os.getenv('DATABASE_URL')
+        
+        if self.postgres_url and POSTGRES_AVAILABLE:
+            self.use_postgres = True
+            self.conn = psycopg2.connect(self.postgres_url)
+            self._create_tables()
+            print("✅ Database: PostgreSQL")
+        else:
+            self.use_postgres = False
+            self.data_dir = 'data'
+            os.makedirs(self.data_dir, exist_ok=True)
+            self._init_json()
+            print("✅ Database: JSON files")
+    
+    def _create_tables(self):
+        """Create PostgreSQL tables"""
+        with self.conn.cursor() as cur:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                    email VARCHAR(255) PRIMARY KEY,
+                    password_hash VARCHAR(255),
+                    name VARCHAR(255),
+                    role VARCHAR(50),
+                    tenant_id VARCHAR(255),
+                    created_at TIMESTAMP,
+                    last_login TIMESTAMP
+                )
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS tenants (
+                    tenant_id VARCHAR(255) PRIMARY KEY,
+                    org_name VARCHAR(255),
+                    plan VARCHAR(50),
+                    api_key VARCHAR(255),
+                    status VARCHAR(50),
+                    created_at TIMESTAMP
+                )
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS sessions (
+                    token VARCHAR(255) PRIMARY KEY,
+                    email VARCHAR(255),
+                    created_at TIMESTAMP,
+                    expires_at TIMESTAMP
+                )
+            """)
+            self.conn.commit()
+    
+    def _init_json(self):
+        """Initialize JSON files"""
+        self.users_file = os.path.join(self.data_dir, 'users.json')
+        self.sessions_file = os.path.join(self.data_dir, 'sessions.json')
+        
+        for file in [self.users_file, self.sessions_file]:
+            if not os.path.exists(file):
+                with open(file, 'w') as f:
+                    json.dump({}, f)
+    
+    def get_user(self, email: str) -> Optional[Dict]:
+        """Get user"""
+        if self.use_postgres:
+            with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute("SELECT * FROM users WHERE email = %s", (email,))
+                row = cur.fetchone()
+                return dict(row) if row else None
+        else:
+            with open(self.users_file, 'r') as f:
+                return json.load(f).get(email)
+    
+    def save_user(self, email: str, data: Dict):
+        """Save user"""
+        if self.use_postgres:
+            with self.conn.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO users (email, password_hash, name, role, tenant_id, created_at)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (email) DO UPDATE SET
+                    password_hash = EXCLUDED.password_hash,
+                    name = EXCLUDED.name,
+                    last_login = EXCLUDED.last_login
+                """, (email, data['password_hash'], data.get('name'), 
+                     data.get('role'), data.get('tenant_id'), data.get('created_at')))
+                self.conn.commit()
+        else:
+            with open(self.users_file, 'r') as f:
+                users = json.load(f)
+            users[email] = data
+            with open(self.users_file, 'w') as f:
+                json.dump(users, f, indent=2)
+
+
+_db = None
+def get_database():
+    global _db
+    if _db is None:
+        _db = Database()
+    return _db

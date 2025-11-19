@@ -1,14 +1,35 @@
 # Production dependencies - verified and tested
 # All packages available via pip
 
+# OpenAI API (Para el motor CGC CORE)
+openai>=1.0.0
+
+# Password hashing (bcrypt) y gestión de sesiones (pyjwt)
+bcrypt>=4.0.0
+pyjwt>=2.0.0
+
+# Entorno y configuración
+python-dotenv>=1.0.0
+
+# Conector de base de datos PostgreSQL (psycopg2-binary es para entornos no compilados como Docker)
+psycopg2-binary>=2.9.0
+
+# Cliente HTTP para Integraciones (ej. SharePointConnector)
+requests>=2.32.0
+
+# Production dependencies - verified and tested
+# All packages available via pip
+
 # OpenAI API
 openai>=1.0.0
+requests>=2.31.0
+PyPDF2>=3.0.0
+python-docx>=1.0.0
+psycopg2-binary>=2.9.0
+PyJWT>=2.8.0
 
 # Password hashing - industry standard
 bcrypt>=4.0.0
 
 # Environment variables management
 python-dotenv>=1.0.0
-
-# CRÍTICO: Token de sesión para auth_system.py
-pyjwt>=2.0.0

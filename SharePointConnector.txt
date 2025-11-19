@@ -1,0 +1,85 @@
+import requests
+from typing import Optional, Dict
+
+class SharePointConnector:
+    """
+    Direct integration with SharePoint for secure contract storage.
+    This class leverages the Microsoft Graph API for multi-tenant access.
+    """
+
+    def __init__(self, tenant_id: str, client_id: str, client_secret: str):
+        self.graph_url = 'https://graph.microsoft.com/v1.0'
+        # Store credentials for later token refresh
+        self.tenant_id = tenant_id
+        self.client_id = client_id
+        self.client_secret = client_secret
+        
+        # CRITICAL FIX: The _get_token method must be defined and called
+        self.auth_token = self._get_token()
+
+    def _get_token(self) -> Optional[str]:
+        """
+        Fetches an access token using OAuth 2.0 Client Credentials Flow.
+        Required for subsequent Graph API calls.
+        """
+        token_url = f"https://login.microsoftonline.com/{self.tenant_id}/oauth2/v2.0/token"
+        
+        payload = {
+            'grant_type': 'client_credentials',
+            'client_id': self.client_id,
+            'client_secret': self.client_secret,
+            # Scope required for accessing MS Graph
+            'scope': 'https://graph.microsoft.com/.default', 
+        }
+        
+        try:
+            # We use the 'requests' library to perform the token request
+            response = requests.post(token_url, data=payload)
+            response.raise_for_status() # Raise an exception for bad status codes
+            token_data = response.json()
+            return token_data.get('access_token')
+        except requests.exceptions.RequestException as e:
+            # Logging is essential here for deployment
+            print(f"ERROR: Failed to obtain SharePoint token: {e}")
+            return None
+
+    def _get_headers(self) -> Dict[str, str]:
+        """Helper method to construct standard authenticated headers."""
+        if not self.auth_token:
+            # In a real app, this should trigger a token refresh attempt
+            return {}
+        return {
+            'Authorization': f'Bearer {self.auth_token}',
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+        }
+
+    def list_contracts_folder(self, site_id: str, folder_path: str = '/Contracts') -> Optional[Dict]:
+        """List all contracts (files) from a specific SharePoint folder."""
+        # API Endpoint: GET /sites/{site-id}/drive/root:{folder-path}:/children
+        
+        if not self.auth_token:
+            print("Error: Authentication token is missing.")
+            return None
+
+        endpoint = f"{self.graph_url}/sites/{site_id}/drive/root:{folder_path}:/children"
+        
+        try:
+            response = requests.get(endpoint, headers=self._get_headers())
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            print(f"ERROR listing folder contents: {e}")
+            return None
+
+
+    def analyze_contract_from_sharepoint(self, file_id: str):
+        """Pull contract, analyze, push results back."""
+        print(f"Starting analysis logic for file_id: {file_id}")
+        
+        # 1. Download from SharePoint (Requires site/drive ID)
+        # 2. Analyze with CGC CORE (Requires Core Logic Integration)
+        # 3. Create SharePoint list item with results (Requires POST to MS Graph)
+        # 4. Add metadata tags (Requires PATCH to MS Graph)
+        
+        return {"status": "Analysis logic placeholder executed."}
