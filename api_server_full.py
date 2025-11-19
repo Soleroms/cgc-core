@@ -13,13 +13,16 @@ from datetime import datetime
 import logging
 
 # Silent logging to file only
+import tempfile
+log_dir = tempfile.gettempdir()
+log_file = os.path.join(log_dir, 'cgc_app.log')
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(message)s',
-    handlers=[logging.FileHandler('/tmp/cgc_app.log')]
+    handlers=[logging.FileHandler(log_file)]
 )
 logger = logging.getLogger(__name__)
-
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 PORT = int(os.environ.get('PORT', 8080))
