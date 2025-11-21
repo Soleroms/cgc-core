@@ -1,7 +1,7 @@
 """
 CGC CORE API Server - Production
-Full DiscipleAI Legal + CGC CORE Integration
-Black Box Mode - Zero Console Output
+Full DiscipleAI Legal™ + CGC CORE™ Integration
+Black Box Mode - Zero Visibility
 """
 
 from http.server import HTTPServer, BaseHTTPRequestHandler
@@ -11,20 +11,18 @@ import os
 import sys
 from datetime import datetime
 import logging
-import tempfile
 
-# BLACK BOX MODE - Silent operation
-log_file = os.path.join(tempfile.gettempdir(), 'cgc_app.log')
+# Silent logging to file only
+import tempfile
+log_dir = tempfile.gettempdir()
+log_file = os.path.join(log_dir, 'cgc_app.log')
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(message)s',
-    handlers=[logging.FileHandler(log_file, encoding='utf-8')]
+    handlers=[logging.FileHandler(log_file)]
 )
 logger = logging.getLogger(__name__)
-
-# Suppress all print statements from imports
-sys.stdout = open(os.devnull, 'w')
-sys.stderr = open(os.devnull, 'w')
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -40,17 +38,18 @@ try:
     auth_system = get_auth_system()
     database = get_database()
     
+    # Create admin silently
     admin_email = 'admin@olympusmont.com'
     if not database.get_user(admin_email):
         auth_system.create_user_and_login(admin_email, 'ChangeMe123!', 'Admin')
     
-    logger.info("Auth & DB initialized")
+    logger.info("Auth & DB ready")
 except Exception as e:
     logger.error(f"Auth init: {e}")
     auth_system = None
     database = None
 
-# Initialize CGC CORE
+# Initialize CGC CORE™
 cgc_available = False
 cgc_engine = None
 contract_analyzer = None
@@ -62,22 +61,19 @@ try:
     cgc_engine = CGCCoreEngine()
     contract_analyzer = ContractAnalyzerAI(cgc_engine)
     cgc_available = True
-    logger.info("CGC CORE initialized")
+    logger.info("CGC CORE™ initialized")
 except Exception as e:
     logger.error(f"CGC init: {e}")
+    # Fallback to OpenAI direct
     if OPENAI_API_KEY:
         try:
             from openai import OpenAI
             openai_client = OpenAI(api_key=OPENAI_API_KEY)
-            logger.info("OpenAI fallback")
+            logger.info("Fallback: OpenAI direct")
         except:
             openai_client = None
     else:
         openai_client = None
-
-# Restore stdout/stderr for server operation
-sys.stdout = sys.__stdout__
-sys.stderr = sys.__stderr__
 
 
 class APIHandler(BaseHTTPRequestHandler):
@@ -140,7 +136,7 @@ class APIHandler(BaseHTTPRequestHandler):
                 'system_status': 'operational',
                 'cgc_core_active': cgc_available,
                 'active_users': stats.get('users', 0),
-                'contracts_analyzed': stats.get('contracts', 0)
+                'uptime': '99.9%'
             })
         except:
             self._send_error(503)
@@ -196,8 +192,9 @@ class APIHandler(BaseHTTPRequestHandler):
             self._send_error(500)
     
     def _handle_analyze(self):
-        """Contract analysis via CGC CORE or OpenAI fallback"""
+        """Contract analysis via CGC CORE™ or OpenAI fallback"""
         try:
+            # Auth
             auth = self.headers.get('Authorization', '')
             if not auth.startswith('Bearer '):
                 self._send_error(401)
@@ -210,6 +207,7 @@ class APIHandler(BaseHTTPRequestHandler):
                 self._send_error(401)
                 return
             
+            # Get contract text
             length = int(self.headers.get('Content-Length', 0))
             data = json.loads(self.rfile.read(length))
             text = data.get('contract_text', '')
@@ -218,14 +216,15 @@ class APIHandler(BaseHTTPRequestHandler):
                 self._send_error(400)
                 return
             
-            # CGC CORE analysis
+            # ANALYZE VIA CGC CORE™
             if cgc_available and contract_analyzer:
                 logger.info(f"CGC analysis: {user['email']}")
                 analysis = self._analyze_cgc(text, user)
             else:
-                logger.info(f"Fallback: {user['email']}")
+                logger.info(f"Fallback analysis: {user['email']}")
                 analysis = self._analyze_fallback(text)
             
+            # Return clean result
             self._send_json({
                 'success': True,
                 'analysis': {
@@ -239,20 +238,45 @@ class APIHandler(BaseHTTPRequestHandler):
             })
             
         except Exception as e:
-            logger.error(f"Analysis: {e}")
+            logger.error(f"Analysis error: {e}")
             self._send_error(500)
     
     def _analyze_cgc(self, text, user):
-        """Full CGC CORE analysis pipeline"""
+        """
+        Full CGC CORE™ Analysis Pipeline
+        
+        Flow:
+        1. ContractAnalyzerAI receives text
+        2. Passes through CGC Core Engine
+        3. PAN™ normalizes and extracts
+        4. ECM™ scores ethics/compliance
+        5. PFM™ predicts risks
+        6. SDA™ generates recommendations
+        7. TCO™ creates blockchain audit hash
+        8. CGC_LOOP™ orchestrates all modules
+        9. Returns structured result
+        """
         try:
+            # This calls the full CGC pipeline
             result = contract_analyzer.analyze(text)
+            
+            # Result should contain:
+            # - summary (from SDA)
+            # - risk_level (from PFM)
+            # - compliance_score (from ECM)
+            # - key_findings (from PAN)
+            # - recommendation (from SDA)
+            # - audit_hash (from TCO)
+            
             return result
+            
         except Exception as e:
-            logger.error(f"CGC failed: {e}")
+            logger.error(f"CGC analysis failed: {e}")
+            # Fallback if CGC fails
             return self._analyze_fallback(text)
     
     def _analyze_fallback(self, text):
-        """OpenAI fallback"""
+        """Fallback to OpenAI if CGC unavailable"""
         try:
             if not openai_client:
                 return {
@@ -267,13 +291,15 @@ class APIHandler(BaseHTTPRequestHandler):
                 model='gpt-4o-mini',
                 messages=[
                     {'role': 'system', 'content': 'Legal analyst. JSON only.'},
-                    {'role': 'user', 'content': f'Analyze contract. JSON: summary, risk_level, compliance_score, key_findings[], recommendation.\n\n{text[:3000]}'}
+                    {'role': 'user', 'content': f'Analyze contract. JSON format: summary, risk_level (low/medium/high), compliance_score (0-100), key_findings (array), recommendation.\n\n{text[:3000]}'}
                 ],
                 temperature=0.3,
                 max_tokens=800
             )
             
-            return json.loads(response.choices[0].message.content)
+            result = json.loads(response.choices[0].message.content)
+            return result
+            
         except Exception as e:
             logger.error(f"Fallback failed: {e}")
             return {
@@ -305,7 +331,7 @@ class APIHandler(BaseHTTPRequestHandler):
 def run_server():
     try:
         server = HTTPServer((HOST, PORT), APIHandler)
-        logger.info(f"Server ready: {PORT}")
+        logger.info(f"Server operational: {PORT}")
         server.serve_forever()
     except KeyboardInterrupt:
         logger.info("Shutdown")

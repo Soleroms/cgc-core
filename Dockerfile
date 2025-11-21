@@ -17,6 +17,29 @@ RUN pip install --no-cache-dir -r requirements.txt \
     && rm -rf /root/.cache/pip
 
 # Python backend
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Instalar utilidades necesarias
+RUN apt-get update && apt-get install -y curl procps \
+    && rm -rf /var/lib/apt/lists/*
+
+# Dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt \
+    && rm -rf /root/.cache/pip
+
+# Python backend
+COPY api_server_full.py .
+COPY auth_system.py .
+COPY database.py .
+COPY config.py .
+COPY logging_config.py .
+
+
+
+
 COPY api_server_full.py .
 COPY auth_system.py .
 COPY database.py .

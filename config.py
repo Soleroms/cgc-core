@@ -12,21 +12,16 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Literal
 
 # --- 1. Determine which .env file to load ---
-# We check an environment variable 'ENV' to decide which file to load.
+# We check an environment variable 'ENVIRONMENT' to decide which file to load.
 # Default to 'development' if not set.
 #
-# To run in production: ENV=production python app.py
-# To run in development: python app.py (or ENV=development python app.py)
+# To run in production: ENVIRONMENT=production python app.py
+# To run in development: python app.py (or ENVIRONMENT=development python app.py)
 #
-ENV = os.getenv("ENVIRONMENT", "development").lower()
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development").lower()
+env_file = ".env.prod" if ENVIRONMENT == "production" else ".env"
 
-if ENV == "production":
-    env_file = ".env.prod"
-else:
-    # We use .env for development by default
-    env_file = ".env"
-
-print(f"Loading settings from: {env_file} (ENVIRONMENT='{ENV}')")
+print(f"Loading settings from: {env_file} (ENVIRONMENT='{ENVIRONMENT}')")
 
 
 # --- 2. Define the Settings Class ---
@@ -37,8 +32,6 @@ class Settings(BaseSettings):
     """
     
     # Define which .env file(s) to load.
-    # We set `extra='ignore'` to allow other env variables to exist
-    # without causing a validation error.
     model_config = SettingsConfigDict(
         env_file=env_file, 
         env_file_encoding='utf-8', 
@@ -46,9 +39,8 @@ class Settings(BaseSettings):
     )
 
     # --- Application ---
-    # We use Field(default=...) for values with defaults.
-    # We can use aliases to map environment variables (e.g., 'ENVIRONMENT')
-    # to a different attribute name (e.g., 'env').
+    # We use Field(alias=...) to map the OS environment variable name 
+    # (e.g., 'ENVIRONMENT') to the internal attribute name (e.g., 'ENV').
     ENV: Literal['development', 'production', 'test'] = Field(
         default='development', 
         alias='ENVIRONMENT'
@@ -57,16 +49,12 @@ class Settings(BaseSettings):
     PORT: int = 8080
 
     # --- Database ---
-    # If a variable has no default, Pydantic will *require* it to be set.
-    # The application will fail to start if it's missing.
-    # We also allow DATABASE_URL to be optional (str | None = None).
+    # DATABASE_URL is for PostgreSQL (optional), DATABASE_PATH is for JSON/SQLite fallback.
     DATABASE_URL: str | None = None
     DATABASE_PATH: str = "./data/production.db"
 
     # --- OpenAI (Secret Management) ---
-    # Use `SecretStr` for sensitive values like API keys.
-    # This prevents the key from being printed in logs or exceptions.
-    # This field is REQUIRED and has no default.
+    # Use `SecretStr` for sensitive values. This field is REQUIRED (no default).
     OPENAI_API_KEY: SecretStr
 
     # --- Logging ---
@@ -74,11 +62,11 @@ class Settings(BaseSettings):
     LOG_FILE: str = "./logs/app.log"
     
     # --- Branding (Static Constants) ---
-    # These are not loaded from .env, but are part of the config.
+    # Symbols removed: (TM) used instead of ™
     COMPANY_NAME: str = 'OlympusMont Systems LLC'
-    PRODUCT_NAME: str = 'DisciplineAI Assistant™'
+    PRODUCT_NAME: str = 'DisciplineAI Assistant (TM)'
     TAGLINE: str = 'AI Efficiency, Software development and Automation Consulting'
-    CORE_ENGINE: str = 'CGC CORE™'
+    CORE_ENGINE: str = 'CGC CORE (TM)'
     VERSION: str = '1.0.0'
 
     def display(self):
@@ -88,15 +76,18 @@ class Settings(BaseSettings):
         print(f"  Host / Port: {self.HOST}:{self.PORT}")
         print(f"  Log Level:   {self.LOG_LEVEL}")
         
-        # Note: Printing a SecretStr automatically redacts it.
-        # This is safe to log.
+        # SecretStr redacts the key automatically when printed
         print(f"  OpenAI Key:  {self.OPENAI_API_KEY}")
         print("-------------------------------")
+        
+    @property
+    def effective_db(self) -> str:
+        """Returns the active database connection string (URL or Path)."""
+        return self.DATABASE_URL or self.DATABASE_PATH
 
 
 # --- 3. Create a single, validated instance ---
 # This code runs when the file is imported.
-# If validation fails, the app will stop here with a clear error.
 try:
     # Create the global config instance
     config = Settings()
@@ -105,9 +96,8 @@ try:
     # config.display()
 
 except ValidationError as e:
-    print("❌ CONFIGURATION ERROR: Failed to load settings.")
+    # Emojis removed: ❌ replaced with [ERROR]
+    print("[ERROR] CONFIGURATION ERROR: Failed to load settings.")
     # Pydantic's error message is very clear about what is missing
     print(e)
     exit(1)
-
-# --- End of config.py ---

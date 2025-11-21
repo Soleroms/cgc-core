@@ -191,7 +191,7 @@ class CGCCoreEngine:
         self.total_contracts = self._get_total_from_table("contracts")
         self.total_cases = self._get_total_from_table("cases")
 
-        logger.info(f"✅ CGC Core Engine v{self.version} initialized")
+        logger.info(f"CGC Core Engine v{self.version} initialized")
         logger.info(f"   Total decisions: {self.total_decisions:,}")
 
     # --- Database ---

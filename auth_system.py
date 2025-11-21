@@ -41,7 +41,7 @@ class AuthSystem:
         os.makedirs(data_dir, exist_ok=True)
         self._init_storage()
         
-        print("✅ Auth System initialized")
+        # Silent mode
     
     def _generate_secret(self) -> str:
         """Generate secure JWT secret"""
