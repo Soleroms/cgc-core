@@ -13,7 +13,8 @@ WORKDIR /app
 
 # Dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt \
+    && rm -rf /root/.cache/pip
 
 # Python backend
 COPY api_server_full.py .
@@ -36,6 +37,8 @@ RUN mkdir -p data logs
 
 EXPOSE 8080
 
-HEALTHCHECK CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8080/api/health')" || exit 1
+# Healthcheck
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+  CMD curl -f http://localhost:8080/api/health || exit 1
 
-CMD ["python", "api_server_full.py"]
+ENTRYPOINT ["python", "api_server_full.py"]
